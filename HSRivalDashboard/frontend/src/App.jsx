@@ -269,12 +269,11 @@ function CardRow({ card, missing, lang = 'en' }) {
   const fullCardUrl = `https://art.hearthstonejson.com/v1/render/latest/${lang === 'pl' ? 'plPL' : 'enUS'}/512x/${card.id}.png`;
   const displayName = lang === 'pl' ? (card.name_pl || card.name) : (card.name_en || card.name);
   
-  const isCore = card.rarity === 'FREE' || (card.id && card.id.startsWith('CORE_'));
-  const isMissingAll = !isCore && card.owned === 0;
-  const isPartial = !isCore && card.owned > 0 && card.owned < card.count;
+  const isMissingAll = card.owned === 0;
+  const isPartial = card.owned > 0 && card.owned < card.count;
   
-  const bg = isCore ? '#f0f9ff' : (isMissingAll ? '#fff5f5' : (isPartial ? '#fffbeb' : '#ffffff'));
-  const border = isCore ? '#bae6fd' : (isMissingAll ? '#fca5a5' : (isPartial ? '#fcd34d' : '#cbd5e1'));
+  const bg = isMissingAll ? '#fff5f5' : (isPartial ? '#fffbeb' : '#ffffff');
+  const border = isMissingAll ? '#fca5a5' : (isPartial ? '#fcd34d' : '#cbd5e1');
 
   const handleMouseEnter = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -361,18 +360,14 @@ function CardRow({ card, missing, lang = 'en' }) {
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
           fontSize: '14px', fontWeight: '800',
-          color: isCore ? '#0369a1' : (isMissingAll ? '#dc2626' : (isPartial ? '#b45309' : '#0f172a')),
+          color: isMissingAll ? '#dc2626' : (isPartial ? '#b45309' : '#0f172a'),
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
         }}>
           {displayName || card.id}
         </div>
-        {isCore ? (
-          <div style={{ fontSize: '11px', color: '#0284c7', fontWeight: '700' }}>
-            {lang === 'pl' ? `🎁 darmowa (Zestaw Bazowy)` : `🎁 free (Core Set)`}
-          </div>
-        ) : card.owned >= card.count ? (
+        {card.owned >= (card.count || 1) ? (
           <div style={{ fontSize: '11px', color: '#16a34a', fontWeight: '700' }}>
-            {lang === 'pl' ? `✓ posiadasz (${card.count}/${card.count})` : `✓ owned (${card.count}/${card.count})`}
+            {lang === 'pl' ? `✓ posiadasz (${card.owned || card.count})` : `✓ owned (${card.owned || card.count})`}
           </div>
         ) : card.owned > 0 ? (
           <div style={{ fontSize: '11px', color: '#f59e0b', fontWeight: '700' }}>
@@ -444,6 +439,7 @@ export default function App() {
   const [collectionCards, setCollectionCards] = useState([]);
   const [collSearch, setCollSearch] = useState('');
   const [collClass, setCollClass] = useState('All');
+  const [visibleCollCount, setVisibleCollCount] = useState(80);
 
   // Language & i18n states (Default: English)
   const [lang, setLang] = useState(() => localStorage.getItem('hs_rival_lang') || 'en');
@@ -1848,7 +1844,10 @@ export default function App() {
                     type="text"
                     placeholder={lang === 'pl' ? "Szukaj karty wg nazwy..." : "Search cards by name..."}
                     value={collSearch}
-                    onChange={e => setCollSearch(e.target.value)}
+                    onChange={e => {
+                      setCollSearch(e.target.value);
+                      setVisibleCollCount(80);
+                    }}
                     style={{
                       padding: '8px 14px', borderRadius: '6px', border: '1px solid #cbd5e1',
                       fontSize: '13px', width: '260px', outline: 'none', background: '#f8fafc'
@@ -1891,11 +1890,28 @@ export default function App() {
                     );
                   }
 
+                  const sliced = filtered.slice(0, visibleCollCount);
+                  const hasMore = filtered.length > visibleCollCount;
+
                   return (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '10px', maxHeight: '700px', overflowY: 'auto', paddingRight: '4px' }}>
-                      {filtered.map(card => (
-                        <CardRow key={card.dbf_id || card.id} card={card} lang={lang} />
-                      ))}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '10px', maxHeight: '650px', overflowY: 'auto', paddingRight: '4px' }}>
+                        {sliced.map(card => (
+                          <CardRow key={card.dbf_id || card.id} card={card} lang={lang} />
+                        ))}
+                      </div>
+                      {hasMore && (
+                        <button
+                          onClick={() => setVisibleCollCount(prev => prev + 100)}
+                          style={{
+                            padding: '10px 20px', background: '#f1f5f9', border: '1px solid #cbd5e1',
+                            borderRadius: '6px', cursor: 'pointer', fontWeight: '800', fontSize: '13px',
+                            color: '#334155', transition: 'all 0.2s', alignSelf: 'center', marginTop: '4px'
+                          }}
+                        >
+                          {lang === 'pl' ? `➕ Pokaż więcej kart (wyświetlono ${sliced.length} z ${filtered.length})` : `➕ Show more cards (showing ${sliced.length} of ${filtered.length})`}
+                        </button>
+                      )}
                     </div>
                   );
                 })()}
