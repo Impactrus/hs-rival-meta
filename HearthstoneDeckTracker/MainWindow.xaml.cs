@@ -185,6 +185,16 @@ namespace HearthstoneDeckTracker
             SaveConfig();
         }
 
+        private string GetApiUrl()
+        {
+            string url = config?.ApiUrl;
+            if (string.IsNullOrWhiteSpace(url) || url.Contains("localhost") || url.Contains("127.0.0.1"))
+            {
+                return "https://hs-rival-meta.onrender.com";
+            }
+            return url.TrimEnd('/');
+        }
+
         private void LoadConfig()
         {
             if (File.Exists(configPath))
@@ -202,6 +212,15 @@ namespace HearthstoneDeckTracker
             else
             {
                 config = new AppConfig();
+            }
+
+            if (config == null) config = new AppConfig();
+
+            // Sanitize ApiUrl if empty or pointing to legacy localhost
+            if (string.IsNullOrWhiteSpace(config.ApiUrl) || config.ApiUrl.Contains("localhost") || config.ApiUrl.Contains("127.0.0.1"))
+            {
+                config.ApiUrl = "https://hs-rival-meta.onrender.com";
+                SaveConfig();
             }
         }
 
@@ -455,7 +474,7 @@ namespace HearthstoneDeckTracker
                 var payload = new { collection = collectionMap, dust = arcaneDust, isFullSync = true };
                 string json = JsonSerializer.Serialize(payload);
                 var content = new System.Net.Http.StringContent(json, System.Text.Encoding.UTF8, "application/json");
-                string apiUrl = config?.ApiUrl ?? "https://hs-rival-meta.onrender.com";
+                string apiUrl = GetApiUrl();
                 if (!string.IsNullOrWhiteSpace(config?.UserToken))
                     httpClient.DefaultRequestHeaders.Add("X-User-Token", config.UserToken);
                 var response = await httpClient.PostAsync($"{apiUrl.TrimEnd('/')}/api/collection", content);
@@ -516,7 +535,7 @@ namespace HearthstoneDeckTracker
         {
             try
             {
-                string apiUrl = config?.ApiUrl ?? "https://hs-rival-meta.onrender.com";
+                string apiUrl = GetApiUrl();
                 System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
                 {
                     FileName = apiUrl,
@@ -617,7 +636,7 @@ namespace HearthstoneDeckTracker
                 var payload = new { collection = collectionMap };
                 string json = JsonSerializer.Serialize(payload);
                 var content = new System.Net.Http.StringContent(json, System.Text.Encoding.UTF8, "application/json");
-                string apiUrl = config?.ApiUrl ?? "https://hs-rival-meta.onrender.com";
+                string apiUrl = GetApiUrl();
                 if (!string.IsNullOrWhiteSpace(config?.UserToken))
                     client.DefaultRequestHeaders.Add("X-User-Token", config.UserToken);
                 var response = await client.PostAsync($"{apiUrl.TrimEnd('/')}/api/collection", content);
@@ -674,7 +693,7 @@ namespace HearthstoneDeckTracker
                 var payload = new { collection = merged, isFullSync = true };
                 string json = JsonSerializer.Serialize(payload);
                 var content = new System.Net.Http.StringContent(json, System.Text.Encoding.UTF8, "application/json");
-                string apiUrl = config?.ApiUrl ?? "https://hs-rival-meta.onrender.com";
+                string apiUrl = GetApiUrl();
                 if (!string.IsNullOrWhiteSpace(config?.UserToken))
                     httpClient.DefaultRequestHeaders.Add("X-User-Token", config.UserToken);
                 var response = await httpClient.PostAsync($"{apiUrl.TrimEnd('/')}/api/collection", content);
