@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: hs-rival-meta
+    env: node
+    rootDir: HSRivalDashboard/backend
+    buildCommand: npm install && npm run build
+    startCommand: node server.js
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: NODE_ENV
+        value: production
