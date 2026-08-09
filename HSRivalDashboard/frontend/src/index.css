@@ -113,3 +113,154 @@ h1, h2, h3, h4, h5 {
   border-color: rgba(212, 175, 55, 0.5);
   transform: translateY(-1px);
 }
+
+/* ============================================================
+   MOBILE RESPONSIVE STYLES — only applies on screens ≤ 768px
+   PC styles are completely unaffected.
+   ============================================================ */
+
+/* Filter toggle button is hidden by default (desktop) */
+.mob-filter-toggle {
+  display: none;
+}
+
+@media (max-width: 768px) {
+
+  /* ---- HEADER ---- */
+  .mob-header {
+    height: auto !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    padding: 8px 12px !important;
+    gap: 4px !important;
+  }
+
+  .mob-header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .mob-header-nav {
+    display: flex !important;
+    gap: 4px !important;
+    height: auto !important;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mob-header-actions {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    padding: 4px 0 2px !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* ---- LAYOUT ---- */
+  .mob-layout {
+    flex-direction: column !important;
+  }
+
+  /* ---- SIDEBAR (filters) ---- */
+  .mob-sidebar {
+    width: 100% !important;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out;
+    padding: 0 12px !important;
+  }
+  .mob-sidebar.mob-sidebar-open {
+    max-height: 9999px;
+    padding: 12px !important;
+  }
+
+  /* ---- MAIN CONTENT ---- */
+  .mob-main {
+    padding: 10px !important;
+  }
+
+  /* ---- RANK TABS ---- */
+  .mob-rank-tabs {
+    gap: 4px !important;
+    padding: 6px !important;
+  }
+  .mob-rank-tabs button {
+    min-width: 70px !important;
+    padding: 8px 6px !important;
+    font-size: 12px !important;
+  }
+
+  /* ---- FILTERS BAR ---- */
+  .mob-filters-bar {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+    padding: 10px 14px !important;
+  }
+
+  /* ---- DECK CARD ---- */
+  .mob-deck-top-row {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+  }
+
+  .mob-deck-stats-row {
+    display: flex !important;
+    gap: 20px !important;
+    margin-right: 0 !important;
+    width: 100%;
+  }
+
+  .mob-deck-copy-btn {
+    width: 100% !important;
+    padding: 10px 0 !important;
+    font-size: 14px !important;
+    text-align: center;
+  }
+
+  /* ---- EXPANDED DECK DETAILS ---- */
+  .mob-expanded-row {
+    flex-direction: column !important;
+    gap: 16px !important;
+  }
+
+  /* ---- DONATE WIDGET ---- */
+  .mob-donate-widget {
+    width: calc(100vw - 24px) !important;
+    bottom: 12px !important;
+    right: 12px !important;
+    left: 12px !important;
+  }
+
+  /* ---- FILTER TOGGLE BUTTON (mobile only) ---- */
+  .mob-filter-toggle {
+    display: flex !important;
+  }
+}
+
+/* =============================
+   VERY SMALL PHONES (≤ 480px)
+   ============================= */
+@media (max-width: 480px) {
+  .mob-header-actions a,
+  .mob-header-actions button {
+    font-size: 11px !important;
+    padding: 5px 8px !important;
+  }
+
+  .mob-deck-stats-row {
+    gap: 12px !important;
+  }
+
+  .mob-rank-tabs button {
+    min-width: 55px !important;
+    font-size: 11px !important;
+    padding: 6px 4px !important;
+  }
+}

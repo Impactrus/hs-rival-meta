@@ -439,6 +439,9 @@ export default function App() {
   const [syncStatus, setSyncStatus] = useState('');
   const [showDonateWidget, setShowDonateWidget] = useState(true);
 
+  // Mobile sidebar toggle
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   // Fetch Decks & Collection
   useEffect(() => {
     fetchDecks();
@@ -787,37 +790,48 @@ export default function App() {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       
       {/* Sticky dark header */}
-      <header style={{ height: '60px', background: 'var(--bg-header)', borderBottom: '2px solid #2e2646', boxShadow: '0 4px 20px rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 24px', position: 'sticky', top: 0, zIndex: 90 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '36px' }}>
+      <header className="mob-header" style={{ height: '60px', background: 'var(--bg-header)', borderBottom: '2px solid #2e2646', boxShadow: '0 4px 20px rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 24px', position: 'sticky', top: 0, zIndex: 90 }}>
+        {/* Top row: logo + nav (on mobile also filter toggle) */}
+        <div className="mob-header-top" style={{ display: 'flex', alignItems: 'center', gap: '36px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ fontSize: '24px' }}>🐉</span>
             <h1 style={{ fontFamily: 'var(--font-hs), serif', fontSize: '22px', fontWeight: '900', background: 'linear-gradient(135deg, #ffd700, #f59e0b, #d4af37)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', letterSpacing: '0.04em', margin: 0 }}>
               HS RIVAL META
             </h1>
           </div>
-          <nav style={{ display: 'flex', gap: '20px', height: '56px' }}>
+          <nav className="mob-header-nav" style={{ display: 'flex', gap: '20px', height: '56px' }}>
             <button 
               onClick={() => setActiveTab('meta')}
-              style={{ background: 'none', border: 'none', color: activeTab === 'meta' ? '#fff' : 'var(--text-light-muted)', fontSize: '14px', fontWeight: '700', cursor: 'pointer', borderBottom: activeTab === 'meta' ? '3px solid var(--gold)' : '3px solid transparent', padding: '0 4px', transition: 'all 0.2s' }}
+              style={{ background: 'none', border: 'none', color: activeTab === 'meta' ? '#fff' : 'var(--text-light-muted)', fontSize: '14px', fontWeight: '700', cursor: 'pointer', borderBottom: activeTab === 'meta' ? '3px solid var(--gold)' : '3px solid transparent', padding: '0 4px', transition: 'all 0.2s', whiteSpace: 'nowrap' }}
             >
               {t.decksTab}
             </button>
             <button 
               onClick={() => setActiveTab('matches')}
-              style={{ background: 'none', border: 'none', color: activeTab === 'matches' ? '#fff' : 'var(--text-light-muted)', fontSize: '14px', fontWeight: '700', cursor: 'pointer', borderBottom: activeTab === 'matches' ? '3px solid var(--gold)' : '3px solid transparent', padding: '0 4px', transition: 'all 0.2s' }}
+              style={{ background: 'none', border: 'none', color: activeTab === 'matches' ? '#fff' : 'var(--text-light-muted)', fontSize: '14px', fontWeight: '700', cursor: 'pointer', borderBottom: activeTab === 'matches' ? '3px solid var(--gold)' : '3px solid transparent', padding: '0 4px', transition: 'all 0.2s', whiteSpace: 'nowrap' }}
             >
               {t.matchesTab}
             </button>
             <button 
               onClick={() => setActiveTab('collection')}
-              style={{ background: 'none', border: 'none', color: activeTab === 'collection' ? '#fff' : 'var(--text-light-muted)', fontSize: '14px', fontWeight: '700', cursor: 'pointer', borderBottom: activeTab === 'collection' ? '3px solid var(--gold)' : '3px solid transparent', padding: '0 4px', transition: 'all 0.2s' }}
+              style={{ background: 'none', border: 'none', color: activeTab === 'collection' ? '#fff' : 'var(--text-light-muted)', fontSize: '14px', fontWeight: '700', cursor: 'pointer', borderBottom: activeTab === 'collection' ? '3px solid var(--gold)' : '3px solid transparent', padding: '0 4px', transition: 'all 0.2s', whiteSpace: 'nowrap' }}
             >
               {t.collectionTab}
             </button>
           </nav>
+          {/* Mobile-only filter toggle button */}
+          {activeTab !== 'collection' && (
+            <button
+              className="mob-filter-toggle"
+              onClick={() => setSidebarOpen(prev => !prev)}
+              style={{ background: sidebarOpen ? 'rgba(2,132,199,0.3)' : 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', borderRadius: '6px', padding: '6px 10px', fontSize: '18px', cursor: 'pointer', flexShrink: 0 }}
+            >
+              🔍
+            </button>
+          )}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div className="mob-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           {/* Language Toggle Switcher */}
           <div style={{ display: 'flex', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '6px', padding: '2px', border: '1px solid rgba(255, 255, 255, 0.12)', marginRight: '6px' }}>
             <button
@@ -905,11 +919,11 @@ export default function App() {
       </header>
 
       {/* Main Container Layout */}
-      <div style={{ flex: 1, display: 'flex' }}>
+      <div className="mob-layout" style={{ flex: 1, display: 'flex' }}>
         
         {/* Left Sidebar (Only visible on Talie & Moje Mecze tabs) */}
         {activeTab !== 'collection' && (
-          <aside style={{ width: '240px', background: 'var(--bg-sidebar)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', flexShrink: 0 }}>
+          <aside className={`mob-sidebar${sidebarOpen ? ' mob-sidebar-open' : ''}`} style={{ width: '240px', background: 'var(--bg-sidebar)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', flexShrink: 0 }}>
             {/* Reset Filters button */}
             <button 
               onClick={handleResetFilters}
@@ -1154,14 +1168,14 @@ export default function App() {
         )}
 
         {/* Content Area */}
-        <main style={{ flex: 1, padding: '24px', overflowY: 'auto' }}>
+        <main className="mob-main" style={{ flex: 1, padding: '24px', overflowY: 'auto' }}>
           
           {/* Tab 1: Decks List (Authentic HSReplay Design) */}
           {activeTab === 'meta' && (
             <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               
               {/* Top Dedicated Rank Tabs Bar */}
-              <div style={{ display: 'flex', gap: '8px', background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: '8px', padding: '8px', overflowX: 'auto', boxShadow: '0 4px 14px rgba(0,0,0,0.3)' }}>
+              <div className="mob-rank-tabs" style={{ display: 'flex', gap: '8px', background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: '8px', padding: '8px', overflowX: 'auto', boxShadow: '0 4px 14px rgba(0,0,0,0.3)' }}>
                 {rankTabs.map(tab => {
                   const isActive = rankRange === tab.id;
                   return (
@@ -1186,7 +1200,7 @@ export default function App() {
               </div>
 
               {/* Top Filters & Statistics bar */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: '8px', padding: '12px 20px', boxShadow: '0 4px 14px rgba(0,0,0,0.3)' }}>
+              <div className="mob-filters-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: '8px', padding: '12px 20px', boxShadow: '0 4px 14px rgba(0,0,0,0.3)' }}>
                 {/* Cards In Decks Tab selector */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
                   <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-dark-muted)', textTransform: 'uppercase' }}>
@@ -1282,7 +1296,7 @@ export default function App() {
                         }}
                       >
                         {/* Upper row: Avatar, Info, Stats, Copy Button */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div className="mob-deck-top-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           
                           {/* Avatar, Title, Class */}
                           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1 }}>
@@ -1351,7 +1365,7 @@ export default function App() {
                           </div>
 
                           {/* Stats columns */}
-                          <div style={{ display: 'flex', gap: '40px', marginRight: '32px', textAlign: 'left' }}>
+                          <div className="mob-deck-stats-row" style={{ display: 'flex', gap: '40px', marginRight: '32px', textAlign: 'left' }}>
                             <div>
                               <div style={{ fontSize: '12px', color: 'var(--text-dark-muted)', textTransform: 'uppercase', fontWeight: '700', letterSpacing: '0.04em' }}>{t.winrate}</div>
                               <div style={{ fontSize: '18px', fontWeight: '800', color: 'var(--win)' }}>{stats.winrate}%</div>
@@ -1368,6 +1382,7 @@ export default function App() {
 
                           {/* Blue Copy Button */}
                           <button 
+                            className="mob-deck-copy-btn"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleCopyCode(deck.deck_code, deck.id);
@@ -1449,7 +1464,7 @@ export default function App() {
                             }}
                           >
                             {/* Stats Curve & Details */}
-                            <div style={{ display: 'flex', gap: '24px', background: '#120e22', padding: '16px', borderRadius: '8px', border: '1px solid var(--panel-border)' }}>
+                              <div className="mob-expanded-row" style={{ display: 'flex', gap: '24px', background: '#120e22', padding: '16px', borderRadius: '8px', border: '1px solid var(--panel-border)' }}>
                               {/* Mana Curve Bar Chart */}
                               <div style={{ flex: 1 }}>
                                 <h4 style={{ fontSize: '12px', textTransform: 'uppercase', color: 'var(--gold-light)', marginBottom: '12px', letterSpacing: '0.05em', fontWeight: '800' }}>
@@ -1766,6 +1781,7 @@ export default function App() {
       {/* Floating Buy Me a Coffee Cloud Banner Widget */}
       {showDonateWidget && (
         <div 
+          className="mob-donate-widget"
           style={{ 
             position: 'fixed', 
             bottom: '24px', 
