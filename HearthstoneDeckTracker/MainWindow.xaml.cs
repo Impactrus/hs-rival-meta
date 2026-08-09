@@ -38,6 +38,7 @@ namespace HearthstoneDeckTracker
         public string Locale { get; set; } = "enUS";
         public string LastDeckCode { get; set; }
         public string ApiUrl { get; set; } = "https://hs-rival-meta.onrender.com";
+        public string UserToken { get; set; } = ""; // Paste token from hs-rival-meta.onrender.com > Kolekcja tab
     }
 
     public partial class MainWindow : Window
@@ -455,6 +456,8 @@ namespace HearthstoneDeckTracker
                 string json = JsonSerializer.Serialize(payload);
                 var content = new System.Net.Http.StringContent(json, System.Text.Encoding.UTF8, "application/json");
                 string apiUrl = config?.ApiUrl ?? "https://hs-rival-meta.onrender.com";
+                if (!string.IsNullOrWhiteSpace(config?.UserToken))
+                    httpClient.DefaultRequestHeaders.Add("X-User-Token", config.UserToken);
                 var response = await httpClient.PostAsync($"{apiUrl.TrimEnd('/')}/api/collection", content);
 
                 bool isPl = config?.Locale == "plPL";
@@ -615,6 +618,8 @@ namespace HearthstoneDeckTracker
                 string json = JsonSerializer.Serialize(payload);
                 var content = new System.Net.Http.StringContent(json, System.Text.Encoding.UTF8, "application/json");
                 string apiUrl = config?.ApiUrl ?? "https://hs-rival-meta.onrender.com";
+                if (!string.IsNullOrWhiteSpace(config?.UserToken))
+                    client.DefaultRequestHeaders.Add("X-User-Token", config.UserToken);
                 var response = await client.PostAsync($"{apiUrl.TrimEnd('/')}/api/collection", content);
 
                 if (response.IsSuccessStatusCode)
@@ -670,6 +675,8 @@ namespace HearthstoneDeckTracker
                 string json = JsonSerializer.Serialize(payload);
                 var content = new System.Net.Http.StringContent(json, System.Text.Encoding.UTF8, "application/json");
                 string apiUrl = config?.ApiUrl ?? "https://hs-rival-meta.onrender.com";
+                if (!string.IsNullOrWhiteSpace(config?.UserToken))
+                    httpClient.DefaultRequestHeaders.Add("X-User-Token", config.UserToken);
                 var response = await httpClient.PostAsync($"{apiUrl.TrimEnd('/')}/api/collection", content);
 
                 bool isPl = config?.Locale == "plPL";

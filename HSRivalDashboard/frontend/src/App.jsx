@@ -442,6 +442,17 @@ export default function App() {
   // Mobile sidebar toggle
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Per-user token for collection sync with tracker
+  const [userToken] = useState(() => {
+    let token = localStorage.getItem('hs_rival_token');
+    if (!token) {
+      token = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36);
+      localStorage.setItem('hs_rival_token', token);
+    }
+    return token;
+  });
+  const [tokenCopied, setTokenCopied] = useState(false);
+
   // Visitor counter
   const [visitStats, setVisitStats] = useState(null);
 
@@ -555,39 +566,38 @@ export default function App() {
 
   const fetchCollection = async () => {
     try {
-      // First: check localStorage (each visitor has their own collection)
-      const localColl = localStorage.getItem('hs_rival_collection');
-      const localDust = localStorage.getItem('hs_rival_dust');
-      if (localColl) {
-        const parsed = JSON.parse(localColl);
-        setCollection(parsed);
-        setCollectionJsonText(JSON.stringify(parsed, null, 2));
-        if (localDust && !isDustManual) {
-          const d = parseInt(localDust, 10);
-          setUserDust(d);
-          if (d > 0) setDustBudget(d);
-        }
-        return; // localStorage collection found — use it, skip server
-      }
-      // Fallback: fetch from server (only useful when running locally with HDT)
-      const res = await fetch(`${API_URL}/collection`);
+      // Fetch from server using user token (per-user collection)
+      const res = await fetch(`${API_URL}/collection`, {
+        headers: { 'X-User-Token': userToken }
+      });
       const data = await res.json();
       const coll = data.collection || {};
+      setCollection(coll);
       if (Object.keys(coll).length > 0) {
-        setCollection(coll);
         setCollectionJsonText(JSON.stringify(coll, null, 2));
-        // Save to localStorage so it persists for this visitor
+        // Cache locally
         localStorage.setItem('hs_rival_collection', JSON.stringify(coll));
-        if (data.dust !== undefined) {
-          setUserDust(data.dust);
-          if (!isDustManual && data.dust > 0) {
-            setDustBudget(data.dust);
-            localStorage.setItem('hs_rival_dust', String(data.dust));
-          }
+      } else {
+        // No server collection yet — check localStorage cache
+        const localColl = localStorage.getItem('hs_rival_collection');
+        if (localColl) {
+          const parsed = JSON.parse(localColl);
+          setCollection(parsed);
+          setCollectionJsonText(JSON.stringify(parsed, null, 2));
         }
+      }
+      if (data.dust !== undefined && data.dust > 0) {
+        setUserDust(data.dust);
+        if (!isDustManual) setDustBudget(data.dust);
       }
     } catch (err) {
       console.error('Error fetching collection:', err);
+      // Fallback to localStorage on network error
+      const localColl = localStorage.getItem('hs_rival_collection');
+      if (localColl) {
+        const parsed = JSON.parse(localColl);
+        setCollection(parsed);
+      }
     }
   };
 
@@ -685,19 +695,22 @@ export default function App() {
     setCollectionStatus('Zapisywanie...');
     try {
       const parsed = JSON.parse(collectionJsonText);
-      // Save to localStorage (works for all visitors — no server needed)
-      localStorage.setItem('hs_rival_collection', JSON.stringify(parsed));
-      setCollection(parsed);
-      setCollectionStatus('Zapisano do przeglądarki! ✅');
-      fetchDecks();
-      // Also try saving to server (works locally with HDT, harmless on production)
-      try {
-        await fetch(`${API_URL}/collection`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ collection: parsed })
-        });
-      } catch {}
+      // Save to server with user token
+      const res = await fetch(`${API_URL}/collection`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-User-Token': userToken },
+        body: JSON.stringify({ collection: parsed, isFullSync: true })
+      });
+      const data = await res.json();
+      if (data.success) {
+        // Cache locally too
+        localStorage.setItem('hs_rival_collection', JSON.stringify(parsed));
+        setCollection(parsed);
+        setCollectionStatus('Zapisano! ✅ Kolekcja zsynchronizowana.');
+        fetchDecks();
+      } else {
+        setCollectionStatus(`Błąd: ${data.error}`);
+      }
     } catch (e) {
       setCollectionStatus('Błąd: Niepoprawny JSON.');
     } finally {
@@ -740,19 +753,16 @@ export default function App() {
           if (c.dbf_id) allDbfIds[c.dbf_id] = c.count || 2;
         });
       });
-      // Save to localStorage
+      // Save to server with token
+      await fetch(`${API_URL}/collection`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-User-Token': userToken },
+        body: JSON.stringify({ collection: allDbfIds, isFullSync: true })
+      });
       localStorage.setItem('hs_rival_collection', JSON.stringify(allDbfIds));
       setCollection(allDbfIds);
       setCollectionStatus('Zaznaczono 100% kart mety jako posiadane! ✅');
       fetchDecks();
-      // Also try server (local use)
-      try {
-        await fetch(`${API_URL}/collection`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ collection: allDbfIds })
-        });
-      } catch {}
     } catch (e) {
       setCollectionStatus('Błąd podczas zapisywania.');
     } finally {
@@ -1797,6 +1807,50 @@ export default function App() {
                       <span>✓</span> {t.markAll100}
                     </button>
                   </div>
+                </div>
+              </div>
+
+              {/* Token panel for tracker sync */}
+              <div style={{ background: 'linear-gradient(135deg, #0f172a, #1e1b4b)', border: '1px solid #3730a3', borderRadius: '8px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '20px' }}>🔑</span>
+                  <h3 style={{ fontSize: '15px', color: '#a5b4fc', margin: 0, fontWeight: '800' }}>
+                    {lang === 'pl' ? 'Twój token synchronizacji' : 'Your sync token'}
+                  </h3>
+                </div>
+                <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0 }}>
+                  {lang === 'pl'
+                    ? 'Skopiuj token i wklej go do config.json trackera w polu "UserToken". Tracker wyśle Twoją kolekcję bezpośrednio na serwer i talie pokażą Twój stan posiadania.'
+                    : 'Copy this token and paste it into the tracker\'s config.json in the "UserToken" field. The tracker will send your collection directly to the server.'}
+                </p>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <code style={{
+                    flex: 1, background: '#0f172a', border: '1px solid #334155', borderRadius: '6px',
+                    padding: '10px 12px', fontSize: '12px', fontFamily: 'var(--font-mono)',
+                    color: '#86efac', overflowX: 'auto', wordBreak: 'break-all'
+                  }}>
+                    {userToken}
+                  </code>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(userToken);
+                      setTokenCopied(true);
+                      setTimeout(() => setTokenCopied(false), 2000);
+                    }}
+                    style={{ padding: '10px 16px', background: tokenCopied ? '#16a34a' : '#4f46e5', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '800', fontSize: '13px', flexShrink: 0, transition: 'background 0.2s' }}
+                  >
+                    {tokenCopied ? '✓ ' + (lang === 'pl' ? 'Skopiowano!' : 'Copied!') : '📋 ' + (lang === 'pl' ? 'Kopiuj' : 'Copy')}
+                  </button>
+                </div>
+                <div style={{ background: 'rgba(99,102,241,0.1)', borderRadius: '6px', padding: '10px 14px', fontSize: '11px', color: '#c7d2fe' }}>
+                  <strong>{lang === 'pl' ? 'Jak skonfigurować tracker:' : 'How to set up the tracker:'}</strong>
+                  <ol style={{ margin: '6px 0 0 16px', padding: 0, lineHeight: '1.8' }}>
+                    <li>{lang === 'pl' ? 'Pobierz HS Rival Tracker z zakładki Talie' : 'Download HS Rival Tracker from the Decks tab'}</li>
+                    <li>{lang === 'pl' ? 'Otwórz plik config.json w folderze trackera' : 'Open config.json in the tracker folder'}</li>
+                    <li>{lang === 'pl' ? 'Wklej token do pola "UserToken"' : 'Paste the token into the "UserToken" field'}</li>
+                    <li>{lang === 'pl' ? 'Ustaw "ServerUrl": "https://hs-rival-meta.onrender.com"' : 'Set "ServerUrl": "https://hs-rival-meta.onrender.com"'}</li>
+                    <li>{lang === 'pl' ? 'Uruchom tracker — kolekcja zsynchronizuje się automatycznie!' : 'Run the tracker — collection syncs automatically!'}</li>
+                  </ol>
                 </div>
               </div>
 

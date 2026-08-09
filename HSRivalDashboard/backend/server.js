@@ -429,18 +429,32 @@ app.post('/api/collection/scan', async (req, res) => {
   }
 });
 
-// 5. Get player collection and dust
+// 5. Get player collection and dust (token-based for public users)
 app.get('/api/collection', async (req, res) => {
+  const token = req.headers['x-user-token'] || req.query.token;
   try {
+    // Ensure per-user collection table exists
+    await dbRun(`CREATE TABLE IF NOT EXISTS user_collections (
+      token TEXT NOT NULL,
+      dbf_id INTEGER NOT NULL,
+      count INTEGER NOT NULL DEFAULT 1,
+      PRIMARY KEY (token, dbf_id)
+    )`);
+
+    if (token) {
+      // Public user — return their token-scoped collection
+      const rows = await dbAll('SELECT dbf_id, count FROM user_collections WHERE token = ?', [token]);
+      const collection = {};
+      rows.forEach(r => { collection[r.dbf_id] = r.count; });
+      return res.json({ collection, dust: 0 });
+    }
+
+    // Local use (no token) — return DB collection
     const rows = await dbAll('SELECT dbf_id, count FROM collection');
     const collection = {};
-    rows.forEach(r => {
-      collection[r.dbf_id] = r.count;
-    });
-
+    rows.forEach(r => { collection[r.dbf_id] = r.count; });
     const dustRow = await dbGet("SELECT value FROM settings WHERE key = 'user_dust'");
     const dust = dustRow ? parseInt(dustRow.value, 10) : 0;
-
     res.json({ collection, dust });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -464,46 +478,71 @@ app.post('/api/collection/dust', async (req, res) => {
 
 // 6. Save player collection (called by manual upload or by C# tracker)
 app.post('/api/collection', async (req, res) => {
-  const { collection, dust, isFullSync } = req.body; // Expects dictionary: { "dbfId": count, ... }
-  
+  const token = req.headers['x-user-token'] || req.body.token;
+  const { collection, dust, isFullSync } = req.body;
+
   if (!collection) {
     return res.status(400).json({ error: 'Collection object is required' });
   }
 
   try {
-    await dbRun('BEGIN TRANSACTION');
+    if (token) {
+      // Public user — store in user_collections scoped by token
+      await dbRun(`CREATE TABLE IF NOT EXISTS user_collections (
+        token TEXT NOT NULL,
+        dbf_id INTEGER NOT NULL,
+        count INTEGER NOT NULL DEFAULT 1,
+        PRIMARY KEY (token, dbf_id)
+      )`);
+      if (isFullSync) {
+        await dbRun('DELETE FROM user_collections WHERE token = ?', [token]);
+      }
+      await dbRun('BEGIN TRANSACTION');
+      const stmt = db.prepare(
+        'INSERT INTO user_collections (token, dbf_id, count) VALUES (?, ?, ?) ON CONFLICT(token, dbf_id) DO UPDATE SET count = MAX(count, excluded.count)'
+      );
+      let count = 0;
+      for (const [dbfIdStr, qty] of Object.entries(collection)) {
+        const dbfId = parseInt(dbfIdStr, 10);
+        const quantity = parseInt(qty, 10);
+        if (!isNaN(dbfId) && !isNaN(quantity) && quantity > 0) {
+          stmt.run(token, dbfId, quantity);
+          count++;
+        }
+      }
+      stmt.finalize();
+      await dbRun('COMMIT');
+      return res.json({ success: true, message: `Zaktualizowano ${count} kart.` });
+    }
 
+    // Local use (no token) — save to shared collection table
+    await dbRun('BEGIN TRANSACTION');
     if (isFullSync) {
       await dbRun('DELETE FROM collection');
     }
-
     const sqlStr = isFullSync
       ? 'INSERT INTO collection (dbf_id, count) VALUES (?, ?)'
       : 'INSERT INTO collection (dbf_id, count) VALUES (?, ?) ON CONFLICT(dbf_id) DO UPDATE SET count = MAX(count, excluded.count)';
-    
-    const stmt = db.prepare(sqlStr);
-    let count = 0;
+    const stmt2 = db.prepare(sqlStr);
+    let count2 = 0;
     for (const [dbfIdStr, qty] of Object.entries(collection)) {
       const dbfId = parseInt(dbfIdStr, 10);
       const quantity = parseInt(qty, 10);
       if (!isNaN(dbfId) && !isNaN(quantity) && quantity > 0) {
-        stmt.run(dbfId, quantity);
-        count++;
+        stmt2.run(dbfId, quantity);
+        count2++;
       }
     }
-    stmt.finalize();
-
+    stmt2.finalize();
     if (dust !== undefined && !isNaN(parseInt(dust, 10))) {
       const val = parseInt(dust, 10);
       await dbRun("INSERT INTO settings (key, value) VALUES ('user_dust', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", [val.toString()]);
     }
-
     await dbRun('COMMIT');
-
     const totalRows = await dbAll('SELECT count(*) as c FROM collection');
-    res.json({ success: true, message: `Zaktualizowano ${count} kart. Łącznie w kolekcji: ${totalRows[0].c} kart.` });
+    res.json({ success: true, message: `Zaktualizowano ${count2} kart. Łącznie: ${totalRows[0].c} kart.` });
   } catch (error) {
-    try { await dbRun('ROLLBACK'); } catch (e) {} // ignore rollback errors
+    try { await dbRun('ROLLBACK'); } catch (e) {}
     res.status(500).json({ error: error.message });
   }
 });
