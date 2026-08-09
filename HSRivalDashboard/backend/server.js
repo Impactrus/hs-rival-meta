@@ -466,25 +466,29 @@ app.get('/api/collection', async (req, res) => {
       PRIMARY KEY (token, key)
     )`);
 
+    const includeCards = req.query.cards === 'true' || req.query.includeCards === 'true';
+
     const enrichCollection = (rows) => {
       const collection = {};
-      const cards = [];
+      const cards = includeCards ? [] : null;
       rows.forEach(r => {
         collection[r.dbf_id] = r.count;
-        const meta = globalCardMap.get(r.dbf_id) || {};
-        cards.push({
-          dbf_id: r.dbf_id,
-          count: r.count,
-          owned: r.count,
-          id: meta.id || '',
-          name: meta.name || meta.name_en || `Card ${r.dbf_id}`,
-          name_en: meta.name_en || meta.name || `Card ${r.dbf_id}`,
-          name_pl: meta.name_pl || meta.name_en || meta.name || `Karta ${r.dbf_id}`,
-          cost: meta.cost !== undefined ? meta.cost : 0,
-          rarity: meta.rarity || 'COMMON',
-          card_class: meta.card_class || 'NEUTRAL',
-          type: meta.type || 'MINION'
-        });
+        if (includeCards) {
+          const meta = globalCardMap.get(r.dbf_id) || {};
+          cards.push({
+            dbf_id: r.dbf_id,
+            count: r.count,
+            owned: r.count,
+            id: meta.id || '',
+            name: meta.name || meta.name_en || `Card ${r.dbf_id}`,
+            name_en: meta.name_en || meta.name || `Card ${r.dbf_id}`,
+            name_pl: meta.name_pl || meta.name_en || meta.name || `Karta ${r.dbf_id}`,
+            cost: meta.cost !== undefined ? meta.cost : 0,
+            rarity: meta.rarity || 'COMMON',
+            card_class: meta.card_class || 'NEUTRAL',
+            type: meta.type || 'MINION'
+          });
+        }
       });
       return { collection, cards };
     };

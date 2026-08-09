@@ -399,7 +399,14 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('meta');
   const [decks, setDecks] = useState([]);
   const [matches, setMatches] = useState([]);
-  const [collection, setCollection] = useState({});
+  const [collection, setCollection] = useState(() => {
+    try {
+      const cached = localStorage.getItem('hs_rival_collection');
+      return cached ? JSON.parse(cached) : {};
+    } catch {
+      return {};
+    }
+  });
   const [matchups, setMatchups] = useState({});
   const [loadingDecks, setLoadingDecks] = useState(false);
   const [hdtConnected, setHdtConnected] = useState(false);
@@ -661,10 +668,11 @@ export default function App() {
     }
   };
 
-  const fetchCollection = async () => {
+  const fetchCollection = async (includeCards = false) => {
     try {
       // Fetch from server using user token (per-user collection)
-      const res = await fetch(`${API_URL}/collection`, {
+      const url = includeCards ? `${API_URL}/collection?cards=true` : `${API_URL}/collection`;
+      const res = await fetch(url, {
         headers: { 'X-User-Token': userToken }
       });
       const data = await res.json();
@@ -965,7 +973,10 @@ export default function App() {
               {t.decksTab}
             </button>
             <button 
-              onClick={() => setActiveTab('collection')}
+              onClick={() => {
+                setActiveTab('collection');
+                fetchCollection(true);
+              }}
               style={{ background: 'none', border: 'none', color: activeTab === 'collection' ? '#fff' : 'var(--text-light-muted)', fontSize: '14px', fontWeight: '700', cursor: 'pointer', borderBottom: activeTab === 'collection' ? '3px solid var(--gold)' : '3px solid transparent', padding: '0 4px', transition: 'all 0.2s', whiteSpace: 'nowrap' }}
             >
               {t.collectionTab}
