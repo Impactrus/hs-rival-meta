@@ -1,5 +1,7 @@
 {
   "HearthstonePath": "",
-  "Locale": "enUS",
-  "LastDeckCode": ""
+  "Locale": "plPL",
+  "LastDeckCode": "",
+  "ApiUrl": "https://hs-rival-meta.onrender.com",
+  "UserToken": ""
 }
