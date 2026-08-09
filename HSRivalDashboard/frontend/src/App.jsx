@@ -555,14 +555,35 @@ export default function App() {
 
   const fetchCollection = async () => {
     try {
+      // First: check localStorage (each visitor has their own collection)
+      const localColl = localStorage.getItem('hs_rival_collection');
+      const localDust = localStorage.getItem('hs_rival_dust');
+      if (localColl) {
+        const parsed = JSON.parse(localColl);
+        setCollection(parsed);
+        setCollectionJsonText(JSON.stringify(parsed, null, 2));
+        if (localDust && !isDustManual) {
+          const d = parseInt(localDust, 10);
+          setUserDust(d);
+          if (d > 0) setDustBudget(d);
+        }
+        return; // localStorage collection found — use it, skip server
+      }
+      // Fallback: fetch from server (only useful when running locally with HDT)
       const res = await fetch(`${API_URL}/collection`);
       const data = await res.json();
-      setCollection(data.collection || {});
-      setCollectionJsonText(JSON.stringify(data.collection || {}, null, 2));
-      if (data.dust !== undefined) {
-        setUserDust(data.dust);
-        if (!isDustManual && data.dust > 0) {
-          setDustBudget(data.dust);
+      const coll = data.collection || {};
+      if (Object.keys(coll).length > 0) {
+        setCollection(coll);
+        setCollectionJsonText(JSON.stringify(coll, null, 2));
+        // Save to localStorage so it persists for this visitor
+        localStorage.setItem('hs_rival_collection', JSON.stringify(coll));
+        if (data.dust !== undefined) {
+          setUserDust(data.dust);
+          if (!isDustManual && data.dust > 0) {
+            setDustBudget(data.dust);
+            localStorage.setItem('hs_rival_dust', String(data.dust));
+          }
         }
       }
     } catch (err) {
@@ -664,19 +685,19 @@ export default function App() {
     setCollectionStatus('Zapisywanie...');
     try {
       const parsed = JSON.parse(collectionJsonText);
-      const res = await fetch(`${API_URL}/collection`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ collection: parsed })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setCollectionStatus('Zapisano pomyślnie!');
-        fetchCollection();
-        fetchDecks();
-      } else {
-        setCollectionStatus(`Błąd: ${data.error}`);
-      }
+      // Save to localStorage (works for all visitors — no server needed)
+      localStorage.setItem('hs_rival_collection', JSON.stringify(parsed));
+      setCollection(parsed);
+      setCollectionStatus('Zapisano do przeglądarki! ✅');
+      fetchDecks();
+      // Also try saving to server (works locally with HDT, harmless on production)
+      try {
+        await fetch(`${API_URL}/collection`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ collection: parsed })
+        });
+      } catch {}
     } catch (e) {
       setCollectionStatus('Błąd: Niepoprawny JSON.');
     } finally {
@@ -691,6 +712,13 @@ export default function App() {
       const data = await res.json();
       if (data.success) {
         setCollectionStatus(data.message);
+        // Fetch from server and save to localStorage
+        const collRes = await fetch(`${API_URL}/collection`);
+        const collData = await collRes.json();
+        if (collData.collection && Object.keys(collData.collection).length > 0) {
+          localStorage.setItem('hs_rival_collection', JSON.stringify(collData.collection));
+          if (collData.dust > 0) localStorage.setItem('hs_rival_dust', String(collData.dust));
+        }
         fetchCollection();
         fetchDecks();
       } else {
@@ -709,24 +737,22 @@ export default function App() {
       const allDbfIds = {};
       decks.forEach(d => {
         d.cards?.forEach(c => {
-          if (c.dbf_id) {
-            allDbfIds[c.dbf_id] = c.count || 2;
-          }
+          if (c.dbf_id) allDbfIds[c.dbf_id] = c.count || 2;
         });
       });
-      const res = await fetch(`${API_URL}/collection`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ collection: allDbfIds })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setCollectionStatus('Zaznaczono 100% kart mety jako posiadane!');
-        fetchCollection();
-        fetchDecks();
-      } else {
-        setCollectionStatus(`Błąd: ${data.error}`);
-      }
+      // Save to localStorage
+      localStorage.setItem('hs_rival_collection', JSON.stringify(allDbfIds));
+      setCollection(allDbfIds);
+      setCollectionStatus('Zaznaczono 100% kart mety jako posiadane! ✅');
+      fetchDecks();
+      // Also try server (local use)
+      try {
+        await fetch(`${API_URL}/collection`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ collection: allDbfIds })
+        });
+      } catch {}
     } catch (e) {
       setCollectionStatus('Błąd podczas zapisywania.');
     } finally {

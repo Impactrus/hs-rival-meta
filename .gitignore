@@ -7,6 +7,11 @@ yarn-error.log*
 # Build outputs
 HSRivalDashboard/backend/temp_stage/
 
+# SQLite databases (personal data - never commit to git!)
+*.db
+*.db-shm
+*.db-wal
+
 # Unity temporary folders
 Library/
 Logs/
