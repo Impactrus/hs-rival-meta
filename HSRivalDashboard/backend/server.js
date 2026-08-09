@@ -608,6 +608,11 @@ app.get('/api/download/tracker', (req, res) => {
   }
 });
 
+// Google Search Console verification file endpoint
+app.get('/googleYuR8TPJD6dTV0k4qd1GlbDy88YgReUxKMADK8DXQMjE.html', (req, res) => {
+  res.send('google-site-verification: googleYuR8TPJD6dTV0k4qd1GlbDy88YgReUxKMADK8DXQMjE.html');
+});
+
 // Serve frontend static build files in production mode
 const frontendDistPath = path.join(__dirname, '..', 'frontend', 'dist');
 if (fs.existsSync(frontendDistPath)) {
@@ -616,7 +621,15 @@ if (fs.existsSync(frontendDistPath)) {
     if (req.path.startsWith('/api')) {
       return next();
     }
-    res.sendFile(path.join(frontendDistPath, 'index.html'));
+    const htmlPath = path.join(frontendDistPath, 'index.html');
+    if (fs.existsSync(htmlPath)) {
+      let content = fs.readFileSync(htmlPath, 'utf8');
+      if (!content.includes('google-site-verification')) {
+        content = content.replace('<head>', '<head>\n    <meta name="google-site-verification" content="YuR8TPJD6dTV0k4qd1GlbDy88YgReUxKMADK8DXQMjE" />');
+      }
+      return res.send(content);
+    }
+    res.sendFile(htmlPath);
   });
 }
 
