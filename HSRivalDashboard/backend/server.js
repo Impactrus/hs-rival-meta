@@ -466,29 +466,50 @@ app.get('/api/collection', async (req, res) => {
       PRIMARY KEY (token, key)
     )`);
 
+    const enrichCollection = (rows) => {
+      const collection = {};
+      const cards = [];
+      rows.forEach(r => {
+        collection[r.dbf_id] = r.count;
+        const meta = globalCardMap.get(r.dbf_id) || {};
+        cards.push({
+          dbf_id: r.dbf_id,
+          count: r.count,
+          owned: r.count,
+          id: meta.id || '',
+          name: meta.name || meta.name_en || `Card ${r.dbf_id}`,
+          name_en: meta.name_en || meta.name || `Card ${r.dbf_id}`,
+          name_pl: meta.name_pl || meta.name_en || meta.name || `Karta ${r.dbf_id}`,
+          cost: meta.cost !== undefined ? meta.cost : 0,
+          rarity: meta.rarity || 'COMMON',
+          card_class: meta.card_class || 'NEUTRAL',
+          type: meta.type || 'MINION'
+        });
+      });
+      return { collection, cards };
+    };
+
     if (token) {
       // Public user — return their token-scoped collection (with fallback to global collection)
       let rows = await dbAll('SELECT dbf_id, count FROM user_collections WHERE token = ?', [token]);
       if (!rows || rows.length === 0) {
         rows = await dbAll('SELECT dbf_id, count FROM collection');
       }
-      const collection = {};
-      rows.forEach(r => { collection[r.dbf_id] = r.count; });
+      const { collection, cards } = enrichCollection(rows);
       let dustRow = await dbGet("SELECT value FROM user_settings WHERE token = ? AND key = 'user_dust'", [token]);
       if (!dustRow) {
         dustRow = await dbGet("SELECT value FROM settings WHERE key = 'user_dust'");
       }
       const dust = dustRow ? parseInt(dustRow.value, 10) : 0;
-      return res.json({ collection, dust });
+      return res.json({ collection, cards, dust });
     }
 
     // Local use (no token) — return DB collection
     const rows = await dbAll('SELECT dbf_id, count FROM collection');
-    const collection = {};
-    rows.forEach(r => { collection[r.dbf_id] = r.count; });
+    const { collection, cards } = enrichCollection(rows);
     const dustRow = await dbGet("SELECT value FROM settings WHERE key = 'user_dust'");
     const dust = dustRow ? parseInt(dustRow.value, 10) : 0;
-    res.json({ collection, dust });
+    res.json({ collection, cards, dust });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

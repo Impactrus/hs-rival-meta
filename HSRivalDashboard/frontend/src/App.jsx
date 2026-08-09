@@ -441,6 +441,9 @@ export default function App() {
   const [dustBudget, setDustBudget] = useState(1600);
   const [filterByDust, setFilterByDust] = useState(false);
   const [isDustManual, setIsDustManual] = useState(false);
+  const [collectionCards, setCollectionCards] = useState([]);
+  const [collSearch, setCollSearch] = useState('');
+  const [collClass, setCollClass] = useState('All');
 
   // Language & i18n states (Default: English)
   const [lang, setLang] = useState(() => localStorage.getItem('hs_rival_lang') || 'en');
@@ -671,6 +674,9 @@ export default function App() {
       const data = await res.json();
       const coll = data.collection || {};
       setCollection(coll);
+      if (data.cards && Array.isArray(data.cards)) {
+        setCollectionCards(data.cards);
+      }
       if (Object.keys(coll).length > 0) {
         setCollectionJsonText(JSON.stringify(coll, null, 2));
         // Cache locally
@@ -961,12 +967,6 @@ export default function App() {
               style={{ background: 'none', border: 'none', color: activeTab === 'meta' ? '#fff' : 'var(--text-light-muted)', fontSize: '14px', fontWeight: '700', cursor: 'pointer', borderBottom: activeTab === 'meta' ? '3px solid var(--gold)' : '3px solid transparent', padding: '0 4px', transition: 'all 0.2s', whiteSpace: 'nowrap' }}
             >
               {t.decksTab}
-            </button>
-            <button 
-              onClick={() => setActiveTab('matches')}
-              style={{ background: 'none', border: 'none', color: activeTab === 'matches' ? '#fff' : 'var(--text-light-muted)', fontSize: '14px', fontWeight: '700', cursor: 'pointer', borderBottom: activeTab === 'matches' ? '3px solid var(--gold)' : '3px solid transparent', padding: '0 4px', transition: 'all 0.2s', whiteSpace: 'nowrap' }}
-            >
-              {t.matchesTab}
             </button>
             <button 
               onClick={() => setActiveTab('collection')}
@@ -1785,137 +1785,7 @@ export default function App() {
             </div>
           )}
 
-          {/* Tab 2: Match History & Matchups Matrix */}
-          {activeTab === 'matches' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }} className="animate-fade-in">
-              <div style={{ display: 'flex', gap: '16px' }}>
-                <div style={{ flex: 1, background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '20px', display: 'flex', alignItems: 'center', gap: '24px' }}>
-                  <div style={{ width: '70px', height: '70px', borderRadius: '50%', background: 'rgba(0,0,0,0.05)', border: `4px solid ${matchStats.rate >= 50 ? 'var(--win)' : 'var(--loss)'}`, display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '20px', fontWeight: '800', color: 'var(--text-dark-main)' }}>
-                    {matchStats.rate}%
-                  </div>
-                  <div>
-                    <h3 style={{ fontSize: '18px', marginBottom: '4px' }}>{t.winrate}</h3>
-                    <p style={{ fontSize: '14px', color: 'var(--text-dark-muted)' }}>
-                      {lang === 'pl' ? 'Bilans:' : 'Score:'} <span style={{ color: 'var(--win)', fontWeight: '800' }}>{matchStats.wins} W</span> – <span style={{ color: 'var(--loss)', fontWeight: '800' }}>{matchStats.losses} L</span>
-                    </p>
-                  </div>
-                </div>
-                
-                <div style={{ flex: 2, background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '20px' }}>
-                  <h4 style={{ fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-dark-muted)', marginBottom: '4px', fontWeight: '700' }}>
-                    {lang === 'pl' ? 'Integracja z Twoim C# Trackerem' : 'C# Tracker Integration'}
-                  </h4>
-                  <p style={{ fontSize: '13px', lineHeight: '1.4' }}>
-                    {lang === 'pl' 
-                      ? <>Wyślij zapytanie <b>POST</b> pod adres <code style={{ color: 'var(--blue-hdt)', fontWeight: '700' }}>http://localhost:5000/api/matches</code>, aby zapisać nową rozgrywkę w bazie.</>
-                      : <>Send a <b>POST</b> request to <code style={{ color: 'var(--blue-hdt)', fontWeight: '700' }}>http://localhost:5000/api/matches</code> to log live matches to database.</>
-                    }
-                  </p>
-                </div>
-              </div>
-
-              {/* Matchups Matrix */}
-              <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '24px' }}>
-                <h3 style={{ fontSize: '16px', marginBottom: '16px' }}>{t.matchupMatrix}</h3>
-                {Object.keys(matchups).length === 0 ? (
-                  <div style={{ color: 'var(--text-dark-muted)', fontSize: '13px', textAlign: 'center', padding: '20px' }}>
-                    {lang === 'pl' ? 'Brak danych pojedynków. Zarejestruj pierwsze mecze w programie.' : 'No matchup data yet. Play games with HDT tracker.'}
-                  </div>
-                ) : (
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'center' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid #cbd5e1', color: 'var(--text-dark-muted)' }}>
-                          <th style={{ padding: '8px', textAlign: 'left', fontWeight: '700' }}>{t.playerClass}</th>
-                          {CLASSES.map(cls => (
-                            <th key={cls} style={{ padding: '8px', fontWeight: '700' }}>
-                              <img src={getClassIconUrl(cls)} style={{ width: '18px', height: '18px', objectFit: 'contain' }} /><br/>
-                              {classNames[cls].split(' ')[0]}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {Object.keys(matchups).map(pClass => (
-                          <tr key={pClass} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                            <td style={{ padding: '8px', textAlign: 'left', fontWeight: '700', color: CLASS_COLORS[pClass] }}>
-                              <img src={getClassIconUrl(pClass)} style={{ width: '18px', height: '18px', objectFit: 'contain', verticalAlign: 'middle', marginRight: '6px' }} />
-                              {classNames[pClass]}
-                            </td>
-                            {CLASSES.map(oClass => {
-                              const stats = matchups[pClass]?.[oClass];
-                              if (!stats || stats.total === 0) return <td key={oClass} style={{ color: '#cbd5e1' }}>-</td>;
-                              const rate = Math.round((stats.wins / stats.total) * 100);
-                              return (
-                                <td key={oClass} style={{ padding: '8px', fontWeight: '800', color: rate >= 50 ? 'var(--win)' : 'var(--loss)', background: rate >= 50 ? 'rgba(22, 163, 74, 0.05)' : 'rgba(220, 38, 38, 0.05)' }}>
-                                  {rate}%<br/><span style={{ fontSize: '9px', fontWeight: '600', opacity: 0.8 }}>{stats.wins}-{stats.losses}</span>
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-
-              {/* Match History Table */}
-              <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '24px' }}>
-                <h3 style={{ fontSize: '16px', marginBottom: '16px' }}>{t.myMatches}</h3>
-                {loadingMatches ? (
-                  <div style={{ color: 'var(--text-dark-muted)', textAlign: 'center', padding: '20px' }}>{lang === 'pl' ? 'Wczytywanie...' : 'Loading...'}</div>
-                ) : matches.length === 0 ? (
-                  <div style={{ color: 'var(--text-dark-muted)', textAlign: 'center', padding: '20px' }}>{lang === 'pl' ? 'Brak meczów.' : 'No played matches found.'}</div>
-                ) : (
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid #cbd5e1', color: 'var(--text-dark-muted)', textAlign: 'left' }}>
-                        <th style={{ padding: '12px 8px' }}>{t.date}</th>
-                        <th style={{ padding: '12px 8px' }}>{t.playerClass}</th>
-                        <th style={{ padding: '12px 8px' }}>{t.opponentClass}</th>
-                        <th style={{ padding: '12px 8px' }}>{t.result}</th>
-                        <th style={{ padding: '12px 8px' }}>{t.rank}</th>
-                        <th style={{ padding: '12px 8px' }}>{t.copyDeck}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {matches.map(m => {
-                        const isWin = m.result?.toLowerCase() === 'won' || m.result?.toLowerCase() === 'wygrana';
-                        return (
-                          <tr key={m.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                            <td style={{ padding: '12px 8px', color: 'var(--text-dark-muted)' }}>{new Date(m.date).toLocaleString(lang === 'pl' ? 'pl-PL' : 'en-US')}</td>
-                            <td style={{ padding: '12px 8px', fontWeight: '700', color: CLASS_COLORS[m.player_class] }}>
-                              <img src={getClassIconUrl(m.player_class)} style={{ width: '18px', height: '18px', objectFit: 'contain', marginRight: '6px', verticalAlign: 'middle' }} />
-                              {classNames[m.player_class]}
-                            </td>
-                            <td style={{ padding: '12px 8px', fontWeight: '700', color: CLASS_COLORS[m.opponent_class] }}>
-                              <img src={getClassIconUrl(m.opponent_class)} style={{ width: '18px', height: '18px', objectFit: 'contain', marginRight: '6px', verticalAlign: 'middle' }} />
-                              {classNames[m.opponent_class]}
-                            </td>
-                            <td style={{ padding: '12px 8px', fontWeight: '800', color: isWin ? 'var(--win)' : 'var(--loss)' }}>{isWin ? t.win : t.loss}</td>
-                            <td style={{ padding: '12px 8px', fontWeight: '700', color: 'var(--gold-dark)' }}>{m.rank}</td>
-                            <td style={{ padding: '12px 8px' }}>
-                              {m.deck_code && (
-                                <button 
-                                  onClick={() => handleCopyCode(m.deck_code, `match-${m.id}`)}
-                                  style={{ padding: '3px 8px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', fontWeight: '700' }}
-                                >
-                                  {copiedId === `match-${m.id}` ? t.copied : t.copyDeck}
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Tab 3: Collection Manager */}
+          {/* Tab 2: Visual Collection Manager */}
           {activeTab === 'collection' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }} className="animate-fade-in">
               <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '24px', display: 'flex', gap: '32px', alignItems: 'center' }}>
@@ -1930,8 +1800,8 @@ export default function App() {
                   <h3 style={{ fontSize: '18px', marginBottom: '8px', color: '#0f172a' }}>{t.collectionManager}</h3>
                   <p style={{ fontSize: '14px', color: '#334155', lineHeight: '1.5', marginBottom: '12px' }}>
                     {lang === 'pl' 
-                      ? <>Kliknij poniższy przycisk, aby automatycznie skanować wszystkie karty z Twojego <b>Hearthstone Deck Trackera</b> i natychmiast wyliczyć dokładne koszty pyłu dla wszystkich talii!</>
-                      : <>Click below to automatically scan your collection from <b>Hearthstone Deck Tracker</b> and calculate exact dust costs for all meta decks!</>
+                      ? <>Poniżej znajduje się pełna wizualna lista kart z Twojej kolekcji zczytana z <b>Hearthstone Deck Trackera</b>!</>
+                      : <>Below is the full visual list of cards in your collection synced from <b>Hearthstone Deck Tracker</b>!</>
                     }
                   </p>
                   <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
@@ -1952,7 +1822,7 @@ export default function App() {
               </div>
 
               {/* HDT Plugin Connection Status Banner */}
-              {hdtConnected ? (
+              {hdtConnected && (
                 <div style={{ background: 'linear-gradient(135deg, #064e3b, #047857)', border: '1px solid #34d399', borderRadius: '8px', padding: '16px 20px', color: '#ecfdf5', fontWeight: '700', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 4px 15px rgba(52, 211, 153, 0.15)' }}>
                   <span style={{ fontSize: '24px' }}>⚡</span>
                   <div>
@@ -1961,84 +1831,132 @@ export default function App() {
                     </div>
                     <div style={{ fontSize: '12px', marginTop: '2px', opacity: 0.9 }}>
                       {lang === 'pl' 
-                        ? 'Wtyczka wykryta w Twoim HDT. Token został powiązany bez Twojego udziału. Wygląda na to, że wszystko działa w tle!' 
-                        : 'Plugin detected in your HDT. Token paired automatically. Everything is running in the background!'}
+                        ? 'Wtyczka wykryta w Twoim HDT. Wszystko synchronizuje się automatycznie w tle!' 
+                        : 'Plugin detected in your HDT. Syncing automatically in the background!'}
                     </div>
                   </div>
                 </div>
-              ) : null}
+              )}
 
-              {/* Token panel for tracker sync */}
-              <div style={{ background: 'linear-gradient(135deg, #0f172a, #1e1b4b)', border: '1px solid #3730a3', borderRadius: '8px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '20px' }}>🔑</span>
-                  <h3 style={{ fontSize: '15px', color: '#a5b4fc', margin: 0, fontWeight: '800' }}>
-                    {lang === 'pl' ? 'Twój token synchronizacji' : 'Your sync token'}
-                  </h3>
-                </div>
-                <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0 }}>
-                  {lang === 'pl'
-                    ? 'Skopiuj token i wklej go do config.json trackera w polu "UserToken". Tracker wyśle Twoją kolekcję bezpośrednio na serwer i talie pokażą Twój stan posiadania.'
-                    : 'Copy this token and paste it into the tracker\'s config.json in the "UserToken" field. The tracker will send your collection directly to the server.'}
-                </p>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <code style={{
-                    flex: 1, background: '#0f172a', border: '1px solid #334155', borderRadius: '6px',
-                    padding: '10px 12px', fontSize: '12px', fontFamily: 'var(--font-mono)',
-                    color: '#86efac', overflowX: 'auto', wordBreak: 'break-all'
-                  }}>
-                    {userToken}
-                  </code>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(userToken);
-                      setTokenCopied(true);
-                      setTimeout(() => setTokenCopied(false), 2000);
-                    }}
-                    style={{ padding: '10px 16px', background: tokenCopied ? '#16a34a' : '#4f46e5', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '800', fontSize: '13px', flexShrink: 0, transition: 'background 0.2s' }}
-                  >
-                    {tokenCopied ? '✓ ' + (lang === 'pl' ? 'Skopiowano!' : 'Copied!') : '📋 ' + (lang === 'pl' ? 'Kopiuj' : 'Copy')}
-                  </button>
-                </div>
-                <div style={{ background: 'rgba(99,102,241,0.1)', borderRadius: '6px', padding: '12px 16px', fontSize: '11px', color: '#c7d2fe' }}>
-                  <strong style={{ color: '#818cf8', fontSize: '12px' }}>
-                    {lang === 'pl' ? '⚡ 1-Kliknięcie — Automatyczny Instalator Wtyczki:' : '⚡ 1-Click Automatic Plugin Installer:'}
-                  </strong>
-                  <ol style={{ margin: '6px 0 12px 16px', padding: 0, lineHeight: '1.8' }}>
-                    <li>{lang === 'pl' ? 'Pobierz "⚡ Zainstaluj Wtyczkę HDT (.exe)" przyciskiem z górnego paska' : 'Download "⚡ 1-Click HDT Installer (.exe)" from top bar'}</li>
-                    <li>{lang === 'pl' ? 'Uruchom plik — wtyczka zainstaluje się sama w Twoim HDT w 1 sekundę!' : 'Run the file — plugin installs into your HDT automatically in 1 second!'}</li>
-                    <li>{lang === 'pl' ? 'Włącz oficjalny HDT oraz naszą stronę — połączą się i zsynchronizują same!' : 'Launch official HDT & website — they pair & sync automatically!'}</li>
-                  </ol>
-                  <strong style={{ color: '#a7f3d0' }}>
-                    {lang === 'pl' ? '💻 Opcja alternatywna — nasz dedykowany mini-tracker:' : '💻 Alternative Option — Standalone Mini Tracker:'}
-                  </strong>
-                  <ol style={{ margin: '6px 0 0 16px', padding: 0, lineHeight: '1.8' }}>
-                    <li>{lang === 'pl' ? 'Pobierz "Pobierz Tracker (HDT)"' : 'Download "Download Tracker (HDT)"'}</li>
-                    <li>{lang === 'pl' ? 'Ustaw "UserToken" w pliku config.json i uruchom' : 'Set "UserToken" in config.json and run'}</li>
-                  </ol>
-                </div>
-              </div>
-
+              {/* Visual Card Collection Grid with Search */}
               <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div>
-                  <h3 style={{ fontSize: '16px', marginBottom: '4px', color: '#0f172a' }}>{t.manualJSON}</h3>
-                  <p style={{ fontSize: '13px', color: '#64748b' }}>Import format dictionary: <code style={{ fontFamily: 'var(--font-mono)' }}>{"{ \"DBF_ID\": COUNT }"}</code>.</p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                  <h3 style={{ fontSize: '16px', color: '#0f172a', margin: 0, fontWeight: '800' }}>
+                    {lang === 'pl' ? '📜 Lista Zsynchronizowanych Kart' : '📜 Synced Cards List'} ({Object.keys(collection).length})
+                  </h3>
+                  <input
+                    type="text"
+                    placeholder={lang === 'pl' ? "Szukaj karty wg nazwy..." : "Search cards by name..."}
+                    value={collSearch}
+                    onChange={e => setCollSearch(e.target.value)}
+                    style={{
+                      padding: '8px 14px', borderRadius: '6px', border: '1px solid #cbd5e1',
+                      fontSize: '13px', width: '260px', outline: 'none', background: '#f8fafc'
+                    }}
+                  />
                 </div>
-                <textarea
-                  value={collectionJsonText}
-                  onChange={e => setCollectionJsonText(e.target.value)}
-                  style={{ width: '100%', height: '200px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '12px', fontSize: '12px', fontFamily: 'var(--font-mono)', outline: 'none' }}
-                />
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ color: 'var(--gold-dark)', fontWeight: '700', fontSize: '13px' }}>{collectionStatus}</span>
-                  <button 
-                    onClick={handleSaveCollection}
-                    style={{ padding: '10px 20px', background: '#334155', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '800', fontSize: '14px' }}
-                  >
-                    {t.saveCollection}
-                  </button>
-                </div>
+
+                {/* Cards Grid */}
+                {(() => {
+                  let filtered = collectionCards.length > 0
+                    ? [...collectionCards]
+                    : Object.keys(collection).map(dbfId => ({
+                        dbf_id: parseInt(dbfId, 10),
+                        count: collection[dbfId],
+                        owned: collection[dbfId],
+                        id: `DBF_${dbfId}`,
+                        name: `Card #${dbfId}`,
+                        cost: 0,
+                        rarity: 'COMMON'
+                      }));
+
+                  if (collSearch) {
+                    const q = collSearch.toLowerCase();
+                    filtered = filtered.filter(c => 
+                      (c.name && c.name.toLowerCase().includes(q)) ||
+                      (c.name_pl && c.name_pl.toLowerCase().includes(q)) ||
+                      (c.name_en && c.name_en.toLowerCase().includes(q)) ||
+                      String(c.dbf_id).includes(q)
+                    );
+                  }
+
+                  // Sort by cost ascending, then name
+                  filtered.sort((a, b) => (a.cost || 0) - (b.cost || 0) || (a.name || '').localeCompare(b.name || ''));
+
+                  if (filtered.length === 0) {
+                    return (
+                      <div style={{ color: '#64748b', textAlign: 'center', padding: '30px', fontSize: '14px' }}>
+                        {lang === 'pl' ? 'Brak kart spełniających kryteria.' : 'No cards found.'}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '10px', maxHeight: '700px', overflowY: 'auto', paddingRight: '4px' }}>
+                      {filtered.map(card => (
+                        <CardRow key={card.dbf_id || card.id} card={card} lang={lang} />
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
+
+              {/* Advanced / Developer Options (Token & Manual Import) */}
+              <details style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px' }}>
+                <summary style={{ cursor: 'pointer', fontWeight: '800', color: '#475569', fontSize: '13px' }}>
+                  ⚙️ {lang === 'pl' ? 'Zaawansowane: Token synchronizacji & Ręczny import JSON' : 'Advanced: Sync Token & Manual JSON Import'}
+                </summary>
+                
+                <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {/* Token panel */}
+                  <div style={{ background: 'linear-gradient(135deg, #0f172a, #1e1b4b)', border: '1px solid #3730a3', borderRadius: '8px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '18px' }}>🔑</span>
+                      <h4 style={{ fontSize: '14px', color: '#a5b4fc', margin: 0, fontWeight: '800' }}>
+                        {lang === 'pl' ? 'Twój token synchronizacji' : 'Your sync token'}
+                      </h4>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <code style={{
+                        flex: 1, background: '#0f172a', border: '1px solid #334155', borderRadius: '6px',
+                        padding: '8px 10px', fontSize: '12px', fontFamily: 'var(--font-mono)',
+                        color: '#86efac', overflowX: 'auto', wordBreak: 'break-all'
+                      }}>
+                        {userToken}
+                      </code>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(userToken);
+                          setTokenCopied(true);
+                          setTimeout(() => setTokenCopied(false), 2000);
+                        }}
+                        style={{ padding: '8px 14px', background: tokenCopied ? '#16a34a' : '#4f46e5', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '800', fontSize: '12px' }}
+                      >
+                        {tokenCopied ? '✓ ' + (lang === 'pl' ? 'Skopiowano!' : 'Copied!') : '📋 ' + (lang === 'pl' ? 'Kopiuj' : 'Copy')}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Manual JSON */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <h4 style={{ fontSize: '14px', margin: 0, color: '#0f172a' }}>{t.manualJSON}</h4>
+                    <textarea
+                      value={collectionJsonText}
+                      onChange={e => setCollectionJsonText(e.target.value)}
+                      style={{ width: '100%', height: '140px', background: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', fontSize: '12px', fontFamily: 'var(--font-mono)', outline: 'none' }}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: 'var(--gold-dark)', fontWeight: '700', fontSize: '13px' }}>{collectionStatus}</span>
+                      <button 
+                        onClick={handleSaveCollection}
+                        style={{ padding: '8px 16px', background: '#334155', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '800', fontSize: '13px' }}
+                      >
+                        {t.saveCollection}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </details>
             </div>
           )}
 
