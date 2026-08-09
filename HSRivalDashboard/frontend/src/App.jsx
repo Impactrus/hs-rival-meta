@@ -397,6 +397,10 @@ export default function App() {
   const [collection, setCollection] = useState({});
   const [matchups, setMatchups] = useState({});
   const [loadingDecks, setLoadingDecks] = useState(false);
+  const [deckOffset, setDeckOffset] = useState(0);
+  const [hasMoreDecks, setHasMoreDecks] = useState(true);
+  const loadMoreRef = useRef(null);
+  const DECK_BATCH = 20;
   const [loadingMatches, setLoadingMatches] = useState(false);
 
   // Filters (HSReplay Layout)
@@ -475,11 +479,35 @@ export default function App() {
     trackVisit();
   }, []);
 
-  // Fetch Decks & Collection
+  // Fetch Decks: reset on filter change
   useEffect(() => {
-    fetchDecks();
+    setDeckOffset(0);
+    setHasMoreDecks(true);
+    setDecks([]);
+    fetchDecks(0, true);
     fetchCollection();
   }, [selectedClass, searchQuery, gameMode, ownedOnly, cardsInDecks, filterByDust, dustBudget]);
+
+  // Infinite scroll: load more when sentinel is visible
+  useEffect(() => {
+    if (!loadMoreRef.current) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMoreDecks && !loadingDecks) {
+          setDeckOffset(prev => prev + DECK_BATCH);
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(loadMoreRef.current);
+    return () => observer.disconnect();
+  }, [hasMoreDecks, loadingDecks]);
+
+  // Load next batch when offset changes (but not on initial 0 — that's handled above)
+  useEffect(() => {
+    if (deckOffset === 0) return;
+    fetchDecks(deckOffset, false);
+  }, [deckOffset]);
 
   // Load Matches when active tab changes
   useEffect(() => {
@@ -530,20 +558,37 @@ export default function App() {
     }
   }, [activeTab, selectedClass, lang]);
 
-  const fetchDecks = async () => {
+  const fetchDecks = async (offset = 0, reset = true) => {
+    if (loadingDecks) return;
     setLoadingDecks(true);
     try {
-      let url = `${API_URL}/decks?`;
+      let url = `${API_URL}/decks?limit=${DECK_BATCH}&offset=${offset}&`;
       if (selectedClass !== 'All') url += `playerClass=${encodeURIComponent(selectedClass)}&`;
       if (gameMode !== 'All') url += `gameMode=${encodeURIComponent(gameMode)}&`;
       if (ownedOnly) url += `ownedOnly=true&`;
       if (filterByDust && dustBudget !== undefined && dustBudget !== null) url += `maxDust=${dustBudget}&`;
       if (cardsInDecks !== 'All') url += `cardsInDecks=${encodeURIComponent(cardsInDecks)}&`;
       if (searchQuery) url += `search=${encodeURIComponent(searchQuery)}`;
-      
-      const res = await fetch(url);
+
+      const res = await fetch(url, {
+        headers: userToken ? { 'X-User-Token': userToken } : {}
+      });
       const data = await res.json();
-      setDecks(Array.isArray(data) ? data : []);
+      const total = parseInt(res.headers.get('X-Total-Count'), 10) || 0;
+      const batch = Array.isArray(data) ? data : [];
+
+      if (reset) {
+        setDecks(batch);
+      } else {
+        setDecks(prev => [...prev, ...batch]);
+      }
+
+      // No more decks if batch is smaller than requested or offset+batch >= total
+      if (batch.length < DECK_BATCH || (total > 0 && offset + batch.length >= total)) {
+        setHasMoreDecks(false);
+      } else {
+        setHasMoreDecks(true);
+      }
     } catch (err) {
       console.error('Error fetching decks:', err);
     } finally {
@@ -1324,16 +1369,29 @@ export default function App() {
 
               {/* Decks List Rows */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {loadingDecks ? (
-                  <div style={{ display: 'flex', justifyContent: 'center', padding: '40px', color: 'var(--text-dark-muted)' }}>
-                    {lang === 'pl' ? 'Wczytywanie talii...' : 'Loading decks...'}
-                  </div>
-                ) : processedDecks.length === 0 ? (
+                {/* Show skeleton cards while initial load */}
+                {loadingDecks && decks.length === 0 ? (
+                  Array.from({ length: 6 }).map((_, i) => (
+                    <div key={`sk-${i}`} style={{
+                      background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px',
+                      padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '16px',
+                      animation: 'pulse 1.4s ease-in-out infinite'
+                    }}>
+                      <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%)', backgroundSize: '200% 100%', flexShrink: 0 }} />
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ height: '16px', width: `${55 + (i % 3) * 15}%`, borderRadius: '6px', background: 'linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%)', backgroundSize: '200% 100%' }} />
+                        <div style={{ height: '12px', width: `${35 + (i % 2) * 20}%`, borderRadius: '6px', background: 'linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%)', backgroundSize: '200% 100%' }} />
+                      </div>
+                      <div style={{ width: '80px', height: '32px', borderRadius: '8px', background: 'linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%)', backgroundSize: '200% 100%' }} />
+                    </div>
+                  ))
+                ) : processedDecks.length === 0 && !loadingDecks ? (
                   <div style={{ display: 'flex', justifyContent: 'center', padding: '40px', color: 'var(--text-dark-muted)' }}>
                     {lang === 'pl' ? 'Brak talii spełniających wybrane kryteria.' : 'No decks match selected criteria.'}
                   </div>
                 ) : (
-                  processedDecks.map(deck => {
+                  <>
+                  {processedDecks.map(deck => {
                     const stats = getDeckMetaStats(deck.deck_code);
                     const isLocal = deck.source_url === 'local';
                     const curveData = getManaCurve(deck.cards);
@@ -1638,7 +1696,24 @@ export default function App() {
 
                       </div>
                     );
-                  })
+                  })}
+
+                  {/* Sentinel div — triggers loading more via IntersectionObserver */}
+                  <div ref={loadMoreRef} style={{ height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {loadingDecks && decks.length > 0 && (
+                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                        {[0, 0.2, 0.4].map((delay, i) => (
+                          <div key={i} style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--blue-hdt)', animation: `pulse 1s ease-in-out ${delay}s infinite` }} />
+                        ))}
+                      </div>
+                    )}
+                    {!hasMoreDecks && decks.length > 0 && (
+                      <span style={{ fontSize: '12px', color: 'rgba(148,163,184,0.5)' }}>
+                        {lang === 'pl' ? `Załadowano wszystkie ${decks.length} talie` : `All ${decks.length} decks loaded`}
+                      </span>
+                    )}
+                  </div>
+                  </>
                 )}
               </div>
             </div>

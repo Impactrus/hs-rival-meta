@@ -232,7 +232,9 @@ app.post('/api/matches', async (req, res) => {
 // 3. Get all high-rank decks (with computed dust cost based on collection)
 app.get('/api/decks', async (req, res) => {
   const { playerClass, search, gameMode, ownedOnly, cardsInDecks, maxDust, craftableOnly } = req.query;
-  
+  const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100);
+  const offset = parseInt(req.query.offset, 10) || 0;
+
   // Normalize class name: handle "DemonHunter" -> "Demon Hunter", "DeathKnight" -> "Death Knight"
   const normalizeClass = (cls) => {
     if (!cls) return cls;
@@ -250,7 +252,6 @@ app.get('/api/decks', async (req, res) => {
 
   if (playerClass && playerClass !== 'All') {
     const normalizedClass = normalizeClass(playerClass);
-    // Match both with and without spaces (e.g. "Demon Hunter" AND "DemonHunter")
     const altClass = normalizedClass.replace(/\s+/g, '');
     sql += ' AND (player_class = ? OR player_class = ? OR REPLACE(player_class, " ", "") = ?)';
     params.push(normalizedClass, altClass, altClass);
@@ -272,37 +273,53 @@ app.get('/api/decks', async (req, res) => {
   const parsedMaxDust = maxDust !== undefined && maxDust !== '' && !isNaN(parseInt(maxDust, 10)) ? parseInt(maxDust, 10) : null;
   const isFilteringOwned = ownedOnly === 'true' || cardsInDecks === 'Owned' || cardsInDecks === 'Craftable' || parsedMaxDust !== null || craftableOnly === 'true';
 
-  if (!isFilteringOwned) {
-    sql += ' LIMIT 100';
-  } else {
-    sql += ' LIMIT 1000';
-  }
-
   try {
-    const decks = await dbAll(sql, params);
-    
-    // Load player collection
-    const collectionRows = await dbAll('SELECT dbf_id, count FROM collection');
+    // Load player collection (needed for dust calculations)
+    const token = req.headers['x-user-token'] || req.query.token;
+    let collectionRows = [];
+    if (token) {
+      try {
+        collectionRows = await dbAll('SELECT dbf_id, count FROM user_collections WHERE token = ?', [token]);
+      } catch { collectionRows = []; }
+    }
+    if (!collectionRows.length) {
+      collectionRows = await dbAll('SELECT dbf_id, count FROM collection');
+    }
     const collectionMap = new Map();
     collectionRows.forEach(r => collectionMap.set(r.dbf_id, r.count));
 
-    // Calculate dust costs dynamically
-    let decksWithDust = calculateDecksDust(decks, collectionMap);
+    if (isFilteringOwned) {
+      // Need all decks for collection-based filtering — fetch all, filter, then paginate
+      const decks = await dbAll(sql + ' LIMIT 1000', params);
+      let decksWithDust = calculateDecksDust(decks, collectionMap);
+      decksWithDust = decksWithDust.filter(d => d.totalCount >= 30);
 
-    // Filter out incomplete decks (decks with fewer than 30 cards, e.g. 20-card brawl/incomplete web posts or 9-card PVE decks)
+      if (ownedOnly === 'true' || cardsInDecks === 'Owned') {
+        decksWithDust = decksWithDust.filter(d => d.missingCount === 0);
+      } else if (cardsInDecks === 'Craftable') {
+        decksWithDust = decksWithDust.filter(d => d.missingCount > 0);
+      }
+      if (parsedMaxDust !== null) {
+        decksWithDust = decksWithDust.filter(d => d.dustCost <= parsedMaxDust);
+      }
+
+      const total = decksWithDust.length;
+      const page = decksWithDust.slice(offset, offset + limit);
+      res.setHeader('X-Total-Count', total);
+      return res.json(page);
+    }
+
+    // No collection filtering — efficient SQL pagination
+    const countSql = sql.replace('SELECT *', 'SELECT COUNT(*) as total');
+    const totalRow = await dbGet(countSql, params);
+    const total = totalRow?.total || 0;
+
+    const decks = await dbAll(sql + ` LIMIT ${limit} OFFSET ${offset}`, params);
+    let decksWithDust = calculateDecksDust(decks, collectionMap);
     decksWithDust = decksWithDust.filter(d => d.totalCount >= 30);
 
-    if (ownedOnly === 'true' || cardsInDecks === 'Owned') {
-      decksWithDust = decksWithDust.filter(d => d.missingCount === 0);
-    } else if (cardsInDecks === 'Craftable') {
-      decksWithDust = decksWithDust.filter(d => d.missingCount > 0);
-    }
-
-    if (parsedMaxDust !== null) {
-      decksWithDust = decksWithDust.filter(d => d.dustCost <= parsedMaxDust);
-    }
-
-    res.json(decksWithDust.slice(0, 100));
+    res.setHeader('X-Total-Count', total);
+    res.json(decksWithDust);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
