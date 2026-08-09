@@ -37,6 +37,7 @@ namespace HearthstoneDeckTracker
         public string HearthstonePath { get; set; }
         public string Locale { get; set; } = "enUS";
         public string LastDeckCode { get; set; }
+        public string ApiUrl { get; set; } = "https://hs-rival-meta.onrender.com";
     }
 
     public partial class MainWindow : Window
@@ -453,7 +454,8 @@ namespace HearthstoneDeckTracker
                 var payload = new { collection = collectionMap, dust = arcaneDust, isFullSync = true };
                 string json = JsonSerializer.Serialize(payload);
                 var content = new System.Net.Http.StringContent(json, System.Text.Encoding.UTF8, "application/json");
-                var response = await httpClient.PostAsync("http://localhost:5000/api/collection", content);
+                string apiUrl = config?.ApiUrl ?? "https://hs-rival-meta.onrender.com";
+                var response = await httpClient.PostAsync($"{apiUrl.TrimEnd('/')}/api/collection", content);
 
                 bool isPl = config?.Locale == "plPL";
                 if (response.IsSuccessStatusCode)
@@ -511,9 +513,10 @@ namespace HearthstoneDeckTracker
         {
             try
             {
+                string apiUrl = config?.ApiUrl ?? "https://hs-rival-meta.onrender.com";
                 System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
                 {
-                    FileName = "http://localhost:5173",
+                    FileName = apiUrl,
                     UseShellExecute = true
                 });
             }
@@ -611,7 +614,8 @@ namespace HearthstoneDeckTracker
                 var payload = new { collection = collectionMap };
                 string json = JsonSerializer.Serialize(payload);
                 var content = new System.Net.Http.StringContent(json, System.Text.Encoding.UTF8, "application/json");
-                var response = await client.PostAsync("http://localhost:5000/api/collection", content);
+                string apiUrl = config?.ApiUrl ?? "https://hs-rival-meta.onrender.com";
+                var response = await client.PostAsync($"{apiUrl.TrimEnd('/')}/api/collection", content);
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -665,7 +669,8 @@ namespace HearthstoneDeckTracker
                 var payload = new { collection = merged, isFullSync = true };
                 string json = JsonSerializer.Serialize(payload);
                 var content = new System.Net.Http.StringContent(json, System.Text.Encoding.UTF8, "application/json");
-                var response = await httpClient.PostAsync("http://localhost:5000/api/collection", content);
+                string apiUrl = config?.ApiUrl ?? "https://hs-rival-meta.onrender.com";
+                var response = await httpClient.PostAsync($"{apiUrl.TrimEnd('/')}/api/collection", content);
 
                 bool isPl = config?.Locale == "plPL";
                 if (response.IsSuccessStatusCode)
