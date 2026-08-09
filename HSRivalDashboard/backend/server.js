@@ -577,14 +577,14 @@ app.post('/api/collection', async (req, res) => {
 
   try {
     if (token) {
-      // Store in user_collections scoped by token
+      // Store in user_collections scoped by token using pure additive accumulation (never delete existing cards on auto-sync)
       await dbRun(`CREATE TABLE IF NOT EXISTS user_collections (
         token TEXT NOT NULL,
         dbf_id INTEGER NOT NULL,
         count INTEGER NOT NULL DEFAULT 1,
         PRIMARY KEY (token, dbf_id)
       )`);
-      if (isFullSync && Object.keys(collection).length >= 300) {
+      if (req.body.forceReset === true) {
         await dbRun('DELETE FROM user_collections WHERE token = ?', [token]);
         await dbRun('DELETE FROM collection');
       }
@@ -623,15 +623,12 @@ app.post('/api/collection', async (req, res) => {
       return res.json({ success: true, message: `Zaktualizowano ${count} kart.` });
     }
 
-    // Local use (no token) — save to shared collection table
+    // Local use (no token) — save to shared collection table (additive accumulation)
     await dbRun('BEGIN TRANSACTION');
-    if (isFullSync) {
+    if (req.body.forceReset === true) {
       await dbRun('DELETE FROM collection');
     }
-    const sqlStr = isFullSync
-      ? 'INSERT INTO collection (dbf_id, count) VALUES (?, ?)'
-      : 'INSERT INTO collection (dbf_id, count) VALUES (?, ?) ON CONFLICT(dbf_id) DO UPDATE SET count = MAX(count, excluded.count)';
-    const stmt2 = db.prepare(sqlStr);
+    const stmt2 = db.prepare('INSERT INTO collection (dbf_id, count) VALUES (?, ?) ON CONFLICT(dbf_id) DO UPDATE SET count = MAX(count, excluded.count)');
     let count2 = 0;
     for (const [dbfIdStr, qty] of Object.entries(collection)) {
       const dbfId = parseInt(dbfIdStr, 10);
