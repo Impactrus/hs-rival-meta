@@ -1,0 +1,115 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Cinzel:wght@600;700;800;900&family=JetBrains+Mono&display=swap');
+
+:root {
+  --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --font-hs: 'Cinzel', serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Hearthstone Tavern Theme Colors */
+  --bg-header: #0f0d1c;
+  --bg-sidebar: #131024;
+  --bg-content: #0a0814;
+  
+  --card-bg: #161226;
+  --card-bg-hover: #1f1936;
+  --card-border: #2e2646;
+  --card-border-hover: #d4af37;
+  
+  --panel-bg: #1b162f;
+  --panel-border: #352b52;
+  
+  --text-dark-main: #f1f5f9;
+  --text-dark-muted: #94a3b8;
+  
+  --text-light-main: #f8fafc;
+  --text-light-muted: #a0aec0;
+
+  --gold: #f59e0b;
+  --gold-light: #ffd700;
+  --gold-dark: #b45309;
+  --blue-hdt: #0284c7;
+  
+  --win: #22c55e;
+  --loss: #ef4444;
+
+  /* Hearthstone Classes Colors */
+  --color-death-knight: #008b8b;
+  --color-demon-hunter: #16a34a;
+  --color-druid: #b45309;
+  --color-hunter: #15803d;
+  --color-mage: #0284c7;
+  --color-paladin: #eab308;
+  --color-priest: #94a3b8;
+  --color-rogue: #64748b;
+  --color-shaman: #2563eb;
+  --color-warlock: #8b5cf6;
+  --color-warrior: #b91c1c;
+  --color-neutral: #64748b;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-content);
+  background-image: 
+    radial-gradient(circle at 50% 0%, #1e1738 0%, transparent 65%),
+    radial-gradient(circle at 10% 40%, #150f29 0%, transparent 45%);
+  background-attachment: fixed;
+  color: var(--text-dark-main);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
+}
+
+/* Custom Dark Tavern Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(10, 8, 20, 0.6);
+}
+::-webkit-scrollbar-thumb {
+  background: #352b52;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gold);
+}
+
+h1, h2, h3, h4, h5 {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* Micro-animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Custom Hearthstone styled deck card */
+.deck-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.deck-card:hover {
+  background: var(--card-bg-hover);
+  box-shadow: 0 8px 24px rgba(212, 175, 55, 0.15);
+  border-color: rgba(212, 175, 55, 0.5);
+  transform: translateY(-1px);
+}

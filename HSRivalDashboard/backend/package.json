@@ -1,0 +1,22 @@
+{
+  "name": "hs-rival-backend",
+  "version": "1.0.0",
+  "description": "Backend for Hearthstone Rival Dashboard",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "build": "npm --prefix ../frontend install && npm --prefix ../frontend run build && node package_tracker.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "deckstrings": "^3.1.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
+  }
+}

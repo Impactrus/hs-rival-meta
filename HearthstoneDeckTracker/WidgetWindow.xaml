@@ -1,0 +1,73 @@
+<Window x:Class="HearthstoneDeckTracker.WidgetWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Hearthstone Tracker Widget" 
+        Height="42" Width="175"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        WindowStartupLocation="Manual">
+    <Border Background="#F2140D07" 
+            BorderBrush="#FFD4AF37" 
+            BorderThickness="2" 
+            CornerRadius="8"
+            Padding="2">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="10" ShadowDepth="2" Color="Black" Opacity="0.8"/>
+        </Border.Effect>
+        <Grid Margin="8,0,8,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            
+            <!-- Active Status Gem -->
+            <Grid Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,0" Width="14" Height="14">
+                <Ellipse Fill="#00E676" Stroke="#FFD4AF37" StrokeThickness="1">
+                    <Ellipse.Triggers>
+                        <EventTrigger RoutedEvent="Loaded">
+                            <BeginStoryboard>
+                                <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0.4" To="1.0" Duration="0:0:1"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </Ellipse.Triggers>
+                </Ellipse>
+            </Grid>
+            
+            <!-- Status Text -->
+            <TextBlock Text="TRACKER AKTYWNY" Foreground="#FFE893" FontSize="10" FontWeight="Black" VerticalAlignment="Center" Grid.Column="1">
+                <TextBlock.Effect>
+                    <DropShadowEffect BlurRadius="2" ShadowDepth="1" Color="Black" Opacity="0.9"/>
+                </TextBlock.Effect>
+            </TextBlock>
+            
+            <!-- Styled Close Button -->
+            <Button Content="✕" Grid.Column="2" Width="18" Height="18" FontSize="10" FontWeight="Bold" Background="Transparent" Foreground="#B59A75" Cursor="Hand" Click="BtnClose_Click" VerticalAlignment="Center">
+                <Button.Style>
+                    <Style TargetType="Button">
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="{TemplateBinding Background}" CornerRadius="3" BorderBrush="#40D4AF37" BorderThickness="1">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="White"/>
+                                <Setter Property="Background" Value="#D32F2F"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+            </Button>
+        </Grid>
+    </Border>
+</Window>

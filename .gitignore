@@ -1,0 +1,28 @@
+# Node dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+HSRivalDashboard/frontend/dist/
+HSRivalDashboard/backend/temp_stage/
+
+# Unity temporary folders
+Library/
+Logs/
+Temp/
+UserSettings/
+MemoryCaptures/
+Recordings/
+
+# C# / .NET build outputs
+**/bin/
+**/obj/
+.vs/
+
+# System / OS
+.DS_Store
+Thumbs.db
+*.user
+*.suo
