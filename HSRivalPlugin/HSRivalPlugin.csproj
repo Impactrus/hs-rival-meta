@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>HSRivalPlugin</AssemblyName>
+    <RootNamespace>HSRivalPlugin</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="System.Net.Http" />
+    <Reference Include="HearthstoneDeckTracker">
+      <HintPath>C:\Users\szymo\AppData\Local\HearthstoneDeckTracker\app-1.55.3\HearthstoneDeckTracker.exe</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="HearthMirror">
+      <HintPath>C:\Users\szymo\AppData\Local\HearthstoneDeckTracker\app-1.55.3\HearthMirror.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="HearthDb">
+      <HintPath>C:\Users\szymo\AppData\Local\HearthstoneDeckTracker\app-1.55.3\HearthDb.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>C:\Users\szymo\AppData\Local\HearthstoneDeckTracker\app-1.55.3\Newtonsoft.Json.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>

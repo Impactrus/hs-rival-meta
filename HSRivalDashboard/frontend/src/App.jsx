@@ -126,7 +126,8 @@ const I18N = {
     promoCoffee: '☕ Buy Me a Coffee!',
     widgetTitle: 'Enjoying the project?',
     widgetDesc: 'Support the development of HS Rival Meta and the deck scanner by buying a coffee!',
-    widgetCTA: 'Buy Me a Coffee (buymeacoffee.com/impacter)'
+    widgetCTA: 'Buy Me a Coffee (buymeacoffee.com/impacter)',
+    downloadPlugin: '🔌 HDT Plugin (.dll)'
   },
   pl: {
     siteTitle: 'HS Rival Meta & Deck Tracker - Najlepsze Talie Hearthstone Po Polsku',
@@ -138,6 +139,7 @@ const I18N = {
     syncDecks: 'Synchronizuj talie z HDT',
     updating: 'Aktualizacja...',
     downloadTracker: '📥 Pobierz Tracker (HDT)',
+    downloadPlugin: '🔌 Wtyczka HDT (Plugin)',
     buyCoffee: '☕ Buy Me a Coffee',
     clearFilters: 'Wyczyść filtry',
     playerClass: 'Klasa Gracza',
@@ -968,6 +970,27 @@ export default function App() {
           </div>
 
           {syncStatus && <span style={{ fontSize: '12px', color: 'var(--gold)', fontWeight: '600' }}>{syncStatus}</span>}
+          <a
+            href="/api/download/plugin"
+            download
+            style={{ 
+              padding: '6px 12px', 
+              background: 'linear-gradient(135deg, #0284c7, #0369a1)', 
+              border: '1px solid #38bdf8', 
+              color: '#fff', 
+              borderRadius: '4px', 
+              fontWeight: '800', 
+              cursor: 'pointer', 
+              fontSize: '12px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '6px',
+              textDecoration: 'none',
+              boxShadow: '0 0 10px rgba(56, 189, 248, 0.3)'
+            }}
+          >
+            {t.downloadPlugin}
+          </a>
           <a
             href="/api/download/tracker"
             download
@@ -1923,14 +1946,21 @@ export default function App() {
                     {tokenCopied ? '✓ ' + (lang === 'pl' ? 'Skopiowano!' : 'Copied!') : '📋 ' + (lang === 'pl' ? 'Kopiuj' : 'Copy')}
                   </button>
                 </div>
-                <div style={{ background: 'rgba(99,102,241,0.1)', borderRadius: '6px', padding: '10px 14px', fontSize: '11px', color: '#c7d2fe' }}>
-                  <strong>{lang === 'pl' ? 'Jak skonfigurować tracker:' : 'How to set up the tracker:'}</strong>
+                <div style={{ background: 'rgba(99,102,241,0.1)', borderRadius: '6px', padding: '12px 16px', fontSize: '11px', color: '#c7d2fe' }}>
+                  <strong style={{ color: '#818cf8', fontSize: '12px' }}>
+                    {lang === 'pl' ? '🔌 Najprostsza metoda — Wtyczka (Plugin) do oficjalnego HDT:' : '🔌 Easiest Method — Official HDT Plugin:'}
+                  </strong>
+                  <ol style={{ margin: '6px 0 12px 16px', padding: 0, lineHeight: '1.8' }}>
+                    <li>{lang === 'pl' ? 'Pobierz wtyczkę "Wtyczka HDT (Plugin)" z górnego paska strony' : 'Download "HDT Plugin" from top bar'}</li>
+                    <li>{lang === 'pl' ? 'Rozpakuj HSRivalPlugin.dll do folderu: %APPDATA%\\HearthstoneDeckTracker\\Plugins\\HSRivalPlugin\\' : 'Extract HSRivalPlugin.dll into: %APPDATA%\\HearthstoneDeckTracker\\Plugins\\HSRivalPlugin\\'}</li>
+                    <li>{lang === 'pl' ? 'Włącz oficjalny HDT -> Opcje -> Wtyczki -> HS Rival Meta -> Wklej powyższy token!' : 'Launch official HDT -> Options -> Plugins -> HS Rival Meta -> Paste sync token!'}</li>
+                  </ol>
+                  <strong style={{ color: '#a7f3d0' }}>
+                    {lang === 'pl' ? '💻 Opcja alternatywna — nasz dedykowany mini-tracker:' : '💻 Alternative Option — Standalone Mini Tracker:'}
+                  </strong>
                   <ol style={{ margin: '6px 0 0 16px', padding: 0, lineHeight: '1.8' }}>
-                    <li>{lang === 'pl' ? 'Pobierz HS Rival Tracker z zakładki Talie' : 'Download HS Rival Tracker from the Decks tab'}</li>
-                    <li>{lang === 'pl' ? 'Otwórz plik config.json w folderze trackera' : 'Open config.json in the tracker folder'}</li>
-                    <li>{lang === 'pl' ? 'Wklej token do pola "UserToken"' : 'Paste the token into the "UserToken" field'}</li>
-                    <li>{lang === 'pl' ? 'Ustaw "ServerUrl": "https://hs-rival-meta.onrender.com"' : 'Set "ServerUrl": "https://hs-rival-meta.onrender.com"'}</li>
-                    <li>{lang === 'pl' ? 'Uruchom tracker — kolekcja zsynchronizuje się automatycznie!' : 'Run the tracker — collection syncs automatically!'}</li>
+                    <li>{lang === 'pl' ? 'Pobierz "Pobierz Tracker (HDT)"' : 'Download "Download Tracker (HDT)"'}</li>
+                    <li>{lang === 'pl' ? 'Ustaw "UserToken" w pliku config.json i uruchom' : 'Set "UserToken" in config.json and run'}</li>
                   </ol>
                 </div>
               </div>

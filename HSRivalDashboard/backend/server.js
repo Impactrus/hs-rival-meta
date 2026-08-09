@@ -697,6 +697,16 @@ app.get('/api/download/tracker', (req, res) => {
   }
 });
 
+// Route for downloading HDT Plugin (HSRivalPlugin.zip)
+app.get('/api/download/plugin', (req, res) => {
+  const pluginZipPath = path.join(__dirname, 'public', 'downloads', 'HSRivalPlugin.zip');
+  if (fs.existsSync(pluginZipPath)) {
+    res.download(pluginZipPath, 'HSRivalPlugin.zip');
+  } else {
+    res.status(404).json({ error: 'Plugin package not found on server.' });
+  }
+});
+
 // Google Search Console verification endpoints
 app.get('/googleYuR8TPJD6dTV0k4qd1GlbDy88YgReUxKMADK8DXQMjE.html', (req, res) => {
   res.send('google-site-verification: googleYuR8TPJD6dTV0k4qd1GlbDy88YgReUxKMADK8DXQMjE.html');
