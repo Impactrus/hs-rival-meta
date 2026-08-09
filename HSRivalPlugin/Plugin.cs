@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Controls;
@@ -11,6 +12,7 @@ using HearthMirror;
 using Hearthstone_Deck_Tracker;
 using Hearthstone_Deck_Tracker.API;
 using Hearthstone_Deck_Tracker.Enums.Hearthstone;
+using Hearthstone_Deck_Tracker.Hearthstone;
 using Hearthstone_Deck_Tracker.Plugins;
 using Newtonsoft.Json;
 using CoreAPI = Hearthstone_Deck_Tracker.API.Core;
@@ -27,7 +29,7 @@ namespace HSRivalPlugin
         public string ButtonText => "Settings";
         public Version Version => new Version(1, 0, 0);
 
-        private static HttpListener _localListener;
+        private static TcpListener _tcpListener;
         private static bool _isRunning = false;
 
         private MenuItem _menuItem;
@@ -49,13 +51,26 @@ namespace HSRivalPlugin
             Config = PluginConfig.Load();
             _isRunning = true;
 
-            // Subscribe to HDT events
+            // Subscribe to HDT game events
             GameEvents.OnGameEnd.Add(OnGameEnd);
             GameEvents.OnInMenu.Add(OnInMenu);
             GameEvents.OnModeChanged.Add(OnModeChanged);
 
-            // Start local HTTP listener for zero-click web app pairing
-            StartLocalHttpListener();
+            // Subscribe to HDT's internal collection changed event
+            try
+            {
+                if (CollectionHelpers.Hearthstone != null)
+                {
+                    CollectionHelpers.Hearthstone.OnCollectionChanged += () =>
+                    {
+                        Task.Run(async () => await SyncCollectionAsync());
+                    };
+                }
+            }
+            catch { }
+
+            // Start local HTTP server using TcpListener (bypasses Windows HttpListener admin restrictions)
+            StartLocalHttpServer();
 
             // Start background loop for auto-syncing collection whenever available
             Task.Run(async () =>
@@ -70,7 +85,7 @@ namespace HSRivalPlugin
                         }
                     }
                     catch { }
-                    await Task.Delay(10000); // Check/sync every 10 seconds
+                    await Task.Delay(8000); // Sync check every 8 seconds
                 }
             });
         }
@@ -80,10 +95,9 @@ namespace HSRivalPlugin
             _isRunning = false;
             try
             {
-                if (_localListener != null && _localListener.IsListening)
+                if (_tcpListener != null)
                 {
-                    _localListener.Stop();
-                    _localListener.Close();
+                    _tcpListener.Stop();
                 }
             }
             catch { }
@@ -99,90 +113,133 @@ namespace HSRivalPlugin
         {
         }
 
-        private static void StartLocalHttpListener()
+        private static void StartLocalHttpServer()
         {
             try
             {
-                _localListener = new HttpListener();
-                _localListener.Prefixes.Add("http://127.0.0.1:48854/");
-                _localListener.Start();
+                _tcpListener = new TcpListener(IPAddress.Loopback, 48854);
+                _tcpListener.Start();
 
                 Task.Run(async () =>
                 {
-                    while (_localListener != null && _localListener.IsListening)
+                    while (_isRunning && _tcpListener != null)
                     {
                         try
                         {
-                            var ctx = await _localListener.GetContextAsync();
-                            var req = ctx.Request;
-                            var res = ctx.Response;
-
-                            // Add CORS headers so web app can communicate with HDT plugin locally
-                            res.Headers.Add("Access-Control-Allow-Origin", "*");
-                            res.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-                            res.Headers.Add("Access-Control-Allow-Headers", "Content-Type");
-
-                            if (req.HttpMethod == "OPTIONS")
+                            var client = await _tcpListener.AcceptTcpClientAsync();
+                            _ = Task.Run(async () =>
                             {
-                                res.StatusCode = 200;
-                                res.Close();
-                                continue;
-                            }
-
-                            if (req.Url.AbsolutePath == "/ping")
-                            {
-                                string responseString = JsonConvert.SerializeObject(new
+                                try
                                 {
-                                    status = "ok",
-                                    hasToken = !string.IsNullOrWhiteSpace(Config?.UserToken),
-                                    userToken = Config?.UserToken ?? ""
-                                });
-                                byte[] buffer = Encoding.UTF8.GetBytes(responseString);
-                                res.ContentType = "application/json";
-                                res.ContentLength64 = buffer.Length;
-                                await res.OutputStream.WriteAsync(buffer, 0, buffer.Length);
-                            }
-                            else if (req.Url.AbsolutePath == "/token" && (req.HttpMethod == "POST" || req.HttpMethod == "GET"))
-                            {
-                                string newToken = req.QueryString["token"];
-                                if (string.IsNullOrWhiteSpace(newToken) && req.HasEntityBody)
-                                {
-                                    using (var reader = new StreamReader(req.InputStream, req.ContentEncoding))
+                                    using (client)
+                                    using (var stream = client.GetStream())
+                                    using (var reader = new StreamReader(stream, Encoding.UTF8))
                                     {
-                                        string body = await reader.ReadToEndAsync();
-                                        try
+                                        string requestLine = await reader.ReadLineAsync();
+                                        if (string.IsNullOrEmpty(requestLine)) return;
+
+                                        int contentLength = 0;
+                                        string line;
+                                        while (!string.IsNullOrEmpty(line = await reader.ReadLineAsync()))
                                         {
-                                            var payload = JsonConvert.DeserializeObject<Dictionary<string, string>>(body);
-                                            if (payload != null && payload.ContainsKey("token"))
-                                                newToken = payload["token"];
+                                            if (line.StartsWith("Content-Length:", StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                int.TryParse(line.Substring(15).Trim(), out contentLength);
+                                            }
                                         }
-                                        catch { }
+
+                                        string body = "";
+                                        if (contentLength > 0)
+                                        {
+                                            char[] buffer = new char[contentLength];
+                                            int readTotal = 0;
+                                            while (readTotal < contentLength)
+                                            {
+                                                int read = await reader.ReadAsync(buffer, readTotal, contentLength - readTotal);
+                                                if (read <= 0) break;
+                                                readTotal += read;
+                                            }
+                                            body = new string(buffer, 0, readTotal);
+                                        }
+
+                                        string[] parts = requestLine.Split(' ');
+                                        string method = parts.Length > 0 ? parts[0] : "GET";
+                                        string path = parts.Length > 1 ? parts[1] : "/";
+
+                                        string responseBody = "";
+                                        int statusCode = 200;
+
+                                        if (method == "OPTIONS")
+                                        {
+                                            responseBody = "";
+                                        }
+                                        else if (path.StartsWith("/ping"))
+                                        {
+                                            responseBody = JsonConvert.SerializeObject(new
+                                            {
+                                                status = "ok",
+                                                hasToken = !string.IsNullOrWhiteSpace(Config?.UserToken),
+                                                userToken = Config?.UserToken ?? ""
+                                            });
+                                        }
+                                        else if (path.StartsWith("/token"))
+                                        {
+                                            string newToken = null;
+                                            if (!string.IsNullOrEmpty(body))
+                                            {
+                                                try
+                                                {
+                                                    var payload = JsonConvert.DeserializeObject<Dictionary<string, string>>(body);
+                                                    if (payload != null && payload.ContainsKey("token"))
+                                                        newToken = payload["token"];
+                                                }
+                                                catch { }
+                                            }
+                                            if (string.IsNullOrEmpty(newToken) && path.Contains("token="))
+                                            {
+                                                int idx = path.IndexOf("token=");
+                                                newToken = path.Substring(idx + 6);
+                                            }
+
+                                            if (!string.IsNullOrWhiteSpace(newToken))
+                                            {
+                                                Config.UserToken = newToken.Trim();
+                                                Config.Save();
+                                                Task.Run(async () => await SyncCollectionAsync());
+                                            }
+
+                                            responseBody = JsonConvert.SerializeObject(new
+                                            {
+                                                success = true,
+                                                userToken = Config?.UserToken ?? ""
+                                            });
+                                        }
+                                        else
+                                        {
+                                            statusCode = 404;
+                                            responseBody = "{\"error\":\"Not Found\"}";
+                                        }
+
+                                        byte[] bodyBytes = Encoding.UTF8.GetBytes(responseBody);
+                                        string header = $"HTTP/1.1 {statusCode} OK\r\n" +
+                                                        "Access-Control-Allow-Origin: *\r\n" +
+                                                        "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n" +
+                                                        "Access-Control-Allow-Headers: Content-Type\r\n" +
+                                                        "Content-Type: application/json; charset=utf-8\r\n" +
+                                                        $"Content-Length: {bodyBytes.Length}\r\n" +
+                                                        "Connection: close\r\n\r\n";
+
+                                        byte[] headerBytes = Encoding.ASCII.GetBytes(header);
+                                        await stream.WriteAsync(headerBytes, 0, headerBytes.Length);
+                                        if (bodyBytes.Length > 0)
+                                        {
+                                            await stream.WriteAsync(bodyBytes, 0, bodyBytes.Length);
+                                        }
+                                        await stream.FlushAsync();
                                     }
                                 }
-
-                                if (!string.IsNullOrWhiteSpace(newToken))
-                                {
-                                    Config.UserToken = newToken.Trim();
-                                    Config.Save();
-                                    Task.Run(async () => await SyncCollectionAsync());
-                                }
-
-                                string responseString = JsonConvert.SerializeObject(new
-                                {
-                                    success = true,
-                                    userToken = Config.UserToken
-                                });
-                                byte[] buffer = Encoding.UTF8.GetBytes(responseString);
-                                res.ContentType = "application/json";
-                                res.ContentLength64 = buffer.Length;
-                                await res.OutputStream.WriteAsync(buffer, 0, buffer.Length);
-                            }
-                            else
-                            {
-                                res.StatusCode = 404;
-                            }
-
-                            res.Close();
+                                catch { }
+                            });
                         }
                         catch { }
                     }
@@ -190,7 +247,7 @@ namespace HSRivalPlugin
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[HS Rival Plugin] Failed to start local listener: {ex.Message}");
+                Console.WriteLine($"[HS Rival Plugin] TcpListener Error: {ex.Message}");
             }
         }
 
@@ -240,59 +297,94 @@ namespace HSRivalPlugin
 
             try
             {
-                List<HearthMirror.Objects.Card> mirrorCards = null;
+                var collectionMap = new Dictionary<int, int>();
                 int userDust = 0;
 
-                // 1. Try FullCollection via Reflection.Client
+                // 1. Primary Method: HDT's official internal CollectionHelpers.Hearthstone
                 try
                 {
-                    var fullColl = Reflection.Client.GetFullCollection();
-                    if (fullColl != null)
+                    if (CollectionHelpers.Hearthstone != null)
                     {
-                        mirrorCards = fullColl.Cards;
-                        userDust = fullColl.Dust;
+                        var task = CollectionHelpers.Hearthstone.GetCollection();
+                        if (task != null)
+                        {
+                            var hdtColl = await task;
+                            if (hdtColl != null)
+                            {
+                                if (hdtColl.Dust > 0) userDust = hdtColl.Dust;
+                                if (hdtColl.Cards != null && hdtColl.Cards.Count > 0)
+                                {
+                                    foreach (var kvp in hdtColl.Cards)
+                                    {
+                                        int dbfId = kvp.Key;
+                                        int[] counts = kvp.Value;
+                                        if (dbfId > 0 && counts != null && counts.Length > 0)
+                                        {
+                                            int normalCount = counts.Length > 0 ? counts[0] : 0;
+                                            int goldenCount = counts.Length > 1 ? counts[1] : 0;
+                                            int totalQty = Math.Max(normalCount, 0) + Math.Max(goldenCount, 0);
+                                            if (totalQty > 0)
+                                            {
+                                                collectionMap[dbfId] = totalQty;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
-                catch { }
-
-                // 2. Try GetCollection via Reflection.Client fallback
-                if (mirrorCards == null || mirrorCards.Count == 0)
+                catch (Exception ex)
                 {
+                    Console.WriteLine("[HSRivalPlugin] CollectionHelpers error: " + ex.Message);
+                }
+
+                // 2. Fallback Method: Direct HearthMirror RAM reading
+                if (collectionMap.Count == 0)
+                {
+                    List<HearthMirror.Objects.Card> mirrorCards = null;
                     try
                     {
-                        mirrorCards = Reflection.Client.GetCollection();
+                        var fullColl = Reflection.Client.GetFullCollection();
+                        if (fullColl != null)
+                        {
+                            mirrorCards = fullColl.Cards;
+                            if (fullColl.Dust > 0) userDust = fullColl.Dust;
+                        }
                     }
                     catch { }
-                }
 
-                var collectionMap = new Dictionary<int, int>();
-
-                // Parse mirror cards if available
-                if (mirrorCards != null && mirrorCards.Count > 0)
-                {
-                    foreach (var card in mirrorCards)
+                    if (mirrorCards == null || mirrorCards.Count == 0)
                     {
-                        if (card == null || string.IsNullOrEmpty(card.Id)) continue;
+                        try { mirrorCards = Reflection.Client.GetCollection(); } catch { }
+                    }
 
-                        int dbfId = 0;
-                        if (Cards.CardIdToDbfId.TryGetValue(card.Id, out int mappedDbfId))
+                    if (mirrorCards != null && mirrorCards.Count > 0)
+                    {
+                        foreach (var card in mirrorCards)
                         {
-                            dbfId = mappedDbfId;
-                        }
-                        else if (Cards.All.TryGetValue(card.Id, out var hearthDbCard))
-                        {
-                            dbfId = hearthDbCard.DbfId;
-                        }
+                            if (card == null || string.IsNullOrEmpty(card.Id)) continue;
 
-                        if (dbfId > 0)
-                        {
-                            int qty = Math.Max(card.Count, card.PremiumType > 0 ? 1 : 0);
-                            if (qty > 0)
+                            int dbfId = 0;
+                            if (Cards.CardIdToDbfId.TryGetValue(card.Id, out int mappedDbfId))
                             {
-                                if (collectionMap.ContainsKey(dbfId))
-                                    collectionMap[dbfId] = Math.Max(collectionMap[dbfId], qty);
-                                else
-                                    collectionMap[dbfId] = qty;
+                                dbfId = mappedDbfId;
+                            }
+                            else if (Cards.All.TryGetValue(card.Id, out var hearthDbCard))
+                            {
+                                dbfId = hearthDbCard.DbfId;
+                            }
+
+                            if (dbfId > 0)
+                            {
+                                int qty = Math.Max(card.Count, card.PremiumType > 0 ? 1 : 0);
+                                if (qty > 0)
+                                {
+                                    if (collectionMap.ContainsKey(dbfId))
+                                        collectionMap[dbfId] = Math.Max(collectionMap[dbfId], qty);
+                                    else
+                                        collectionMap[dbfId] = qty;
+                                }
                             }
                         }
                     }
@@ -300,7 +392,7 @@ namespace HSRivalPlugin
 
                 if (collectionMap.Count == 0)
                 {
-                    return "Wykryto brak kolekcji w pamięci. Wejdź do zakładki 'Moja Kolekcja' w Hearthstone.";
+                    return "Wykryto brak kolekcji. Otwórz 'Moja Kolekcja' w Hearthstone.";
                 }
 
                 // Add free Core Set cards automatically
@@ -333,7 +425,7 @@ namespace HSRivalPlugin
                     var response = await client.PostAsync($"{serverUrl}/api/collection", content);
                     if (response.IsSuccessStatusCode)
                     {
-                        return $"✓ Zsynchronizowano {collectionMap.Count} kart z portalem HS Rival Meta!";
+                        return $"✓ Zsynchronizowano {collectionMap.Count} kart i {userDust} pyłu!";
                     }
                     else
                     {
