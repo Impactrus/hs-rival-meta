@@ -442,6 +442,28 @@ export default function App() {
   // Mobile sidebar toggle
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Visitor counter
+  const [visitStats, setVisitStats] = useState(null);
+
+  // Track visit once per session & fetch stats
+  useEffect(() => {
+    const fetchVisits = async () => {
+      try {
+        const res = await fetch(`${API_URL}/stats/visits`);
+        const data = await res.json();
+        setVisitStats(data);
+      } catch {}
+    };
+    const trackVisit = async () => {
+      if (!sessionStorage.getItem('hs_visited')) {
+        sessionStorage.setItem('hs_visited', '1');
+        try { await fetch(`${API_URL}/stats/visit`, { method: 'POST' }); } catch {}
+      }
+      fetchVisits();
+    };
+    trackVisit();
+  }, []);
+
   // Fetch Decks & Collection
   useEffect(() => {
     fetchDecks();
@@ -1870,6 +1892,34 @@ export default function App() {
           </a>
         </div>
       )}
+
+      {/* Subtle visitor counter footer */}
+      <footer style={{
+        background: 'rgba(10, 8, 20, 0.7)',
+        borderTop: '1px solid rgba(46, 38, 70, 0.5)',
+        padding: '8px 24px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        fontSize: '11px',
+        color: 'rgba(148, 163, 184, 0.55)',
+        gap: '12px',
+        flexWrap: 'wrap'
+      }}>
+        <span>© 2025 HS Rival Meta</span>
+        {visitStats && (
+          <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span title={lang === 'pl' ? 'Łączna liczba odwiedzin' : 'Total visits'}>
+              👁 {visitStats.total.toLocaleString(lang === 'pl' ? 'pl-PL' : 'en-US')} {lang === 'pl' ? 'odwiedzin' : 'visits'}
+            </span>
+            <span style={{ opacity: 0.4 }}>•</span>
+            <span title={lang === 'pl' ? 'Dzisiaj' : 'Today'}>
+              🟢 {visitStats.today} {lang === 'pl' ? 'dziś' : 'today'}
+            </span>
+          </span>
+        )}
+        <span style={{ opacity: 0.5 }}>{lang === 'pl' ? 'Dane z HSReplay.net' : 'Data from HSReplay.net'}</span>
+      </footer>
 
     </div>
   );

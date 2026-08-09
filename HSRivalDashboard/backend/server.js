@@ -150,6 +150,39 @@ function calculateDecksDust(decks, collectionMap) {
   });
 }
 
+// 0. Track page visit (called once per session from frontend)
+app.post('/api/stats/visit', async (req, res) => {
+  try {
+    // Ensure table exists
+    await dbRun(`CREATE TABLE IF NOT EXISTS visits (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      visited_at TEXT NOT NULL DEFAULT (datetime('now')),
+      ip TEXT
+    )`);
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
+    await dbRun(`INSERT INTO visits (ip) VALUES (?)`, [ip]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.json({ ok: false });
+  }
+});
+
+// 0b. Get visitor stats
+app.get('/api/stats/visits', async (req, res) => {
+  try {
+    await dbRun(`CREATE TABLE IF NOT EXISTS visits (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      visited_at TEXT NOT NULL DEFAULT (datetime('now')),
+      ip TEXT
+    )`);
+    const total = await dbGet(`SELECT COUNT(*) as count FROM visits`);
+    const today = await dbGet(`SELECT COUNT(*) as count FROM visits WHERE date(visited_at) = date('now')`);
+    res.json({ total: total.count, today: today.count });
+  } catch (err) {
+    res.json({ total: 0, today: 0 });
+  }
+});
+
 // 1. Get all matches (uploaded by tracker)
 app.get('/api/matches', async (req, res) => {
   try {
