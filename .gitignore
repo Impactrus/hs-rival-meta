@@ -7,8 +7,7 @@ yarn-error.log*
 # Build outputs
 HSRivalDashboard/backend/temp_stage/
 
-# SQLite databases (personal data - never commit to git!)
-*.db
+# SQLite WAL/temp files (never commit these)
 *.db-shm
 *.db-wal
 
