@@ -298,24 +298,6 @@ namespace HSRivalPlugin
                     }
                 }
 
-                // Fallback: extract cards from HDT active player decks if RAM memory reader was empty
-                if (collectionMap.Count == 0 && DeckList.Instance != null && DeckList.Instance.Decks != null)
-                {
-                    foreach (var deck in DeckList.Instance.Decks)
-                    {
-                        if (deck == null || deck.Cards == null) continue;
-                        foreach (var card in deck.Cards)
-                        {
-                            if (card == null || card.DbfId <= 0) continue;
-                            int count = card.Count;
-                            if (collectionMap.ContainsKey(card.DbfId))
-                                collectionMap[card.DbfId] = Math.Max(collectionMap[card.DbfId], count);
-                            else
-                                collectionMap[card.DbfId] = count;
-                        }
-                    }
-                }
-
                 if (collectionMap.Count == 0)
                 {
                     return "Wykryto brak kolekcji w pamięci. Wejdź do zakładki 'Moja Kolekcja' w Hearthstone.";
