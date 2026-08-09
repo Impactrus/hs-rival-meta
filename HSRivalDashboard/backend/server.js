@@ -584,7 +584,7 @@ app.post('/api/collection', async (req, res) => {
         count INTEGER NOT NULL DEFAULT 1,
         PRIMARY KEY (token, dbf_id)
       )`);
-      if (isFullSync) {
+      if (isFullSync && Object.keys(collection).length >= 300) {
         await dbRun('DELETE FROM user_collections WHERE token = ?', [token]);
         await dbRun('DELETE FROM collection');
       }

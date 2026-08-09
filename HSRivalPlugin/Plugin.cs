@@ -312,58 +312,58 @@ namespace HSRivalPlugin
                 var collectionMap = new Dictionary<int, int>();
                 int userDust = 0;
 
-                // 1. Primary Method: HDT's official internal CollectionHelpers.Hearthstone
+                // 1. Primary Method: Direct HearthMirror RAM reading (full collection)
+                List<HearthMirror.Objects.Card> mirrorCards = null;
                 try
                 {
-                    await SafeHDTHelper.TryPopulateFromHDTAsync(collectionMap, dust => userDust = dust);
+                    var fullColl = Reflection.Client.GetFullCollection();
+                    if (fullColl != null)
+                    {
+                        mirrorCards = fullColl.Cards;
+                        if (fullColl.Dust > 0) userDust = fullColl.Dust;
+                    }
                 }
                 catch { }
 
-                // 2. Fallback Method: Direct HearthMirror RAM reading
+                if (mirrorCards == null || mirrorCards.Count == 0)
+                {
+                    try { mirrorCards = Reflection.Client.GetCollection(); } catch { }
+                }
+
+                if (mirrorCards != null && mirrorCards.Count > 0)
+                {
+                    foreach (var card in mirrorCards)
+                    {
+                        if (card == null || string.IsNullOrEmpty(card.Id)) continue;
+
+                        int dbfId = 0;
+                        if (Cards.CardIdToDbfId.TryGetValue(card.Id, out int mappedDbfId))
+                        {
+                            dbfId = mappedDbfId;
+                        }
+                        else if (Cards.All.TryGetValue(card.Id, out var hearthDbCard))
+                        {
+                            dbfId = hearthDbCard.DbfId;
+                        }
+
+                        if (dbfId > 0 && card.Count > 0)
+                        {
+                            if (collectionMap.ContainsKey(dbfId))
+                                collectionMap[dbfId] += card.Count;
+                            else
+                                collectionMap[dbfId] = card.Count;
+                        }
+                    }
+                }
+
+                // 2. Fallback Method: HDT's internal CollectionHelpers.Hearthstone if HearthMirror RAM reading returned 0
                 if (collectionMap.Count == 0)
                 {
-                    List<HearthMirror.Objects.Card> mirrorCards = null;
                     try
                     {
-                        var fullColl = Reflection.Client.GetFullCollection();
-                        if (fullColl != null)
-                        {
-                            mirrorCards = fullColl.Cards;
-                            if (fullColl.Dust > 0) userDust = fullColl.Dust;
-                        }
+                        await SafeHDTHelper.TryPopulateFromHDTAsync(collectionMap, dust => userDust = dust);
                     }
                     catch { }
-
-                    if (mirrorCards == null || mirrorCards.Count == 0)
-                    {
-                        try { mirrorCards = Reflection.Client.GetCollection(); } catch { }
-                    }
-
-                    if (mirrorCards != null && mirrorCards.Count > 0)
-                    {
-                        foreach (var card in mirrorCards)
-                        {
-                            if (card == null || string.IsNullOrEmpty(card.Id)) continue;
-
-                            int dbfId = 0;
-                            if (Cards.CardIdToDbfId.TryGetValue(card.Id, out int mappedDbfId))
-                            {
-                                dbfId = mappedDbfId;
-                            }
-                            else if (Cards.All.TryGetValue(card.Id, out var hearthDbCard))
-                            {
-                                dbfId = hearthDbCard.DbfId;
-                            }
-
-                            if (dbfId > 0 && card.Count > 0)
-                            {
-                                if (collectionMap.ContainsKey(dbfId))
-                                    collectionMap[dbfId] += card.Count;
-                                else
-                                    collectionMap[dbfId] = card.Count;
-                            }
-                        }
-                    }
                 }
 
                 if (collectionMap.Count == 0)
