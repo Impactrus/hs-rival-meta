@@ -355,16 +355,12 @@ namespace HSRivalPlugin
                                 dbfId = hearthDbCard.DbfId;
                             }
 
-                            if (dbfId > 0)
+                            if (dbfId > 0 && card.Count > 0)
                             {
-                                int qty = Math.Max(card.Count, card.PremiumType > 0 ? 1 : 0);
-                                if (qty > 0)
-                                {
-                                    if (collectionMap.ContainsKey(dbfId))
-                                        collectionMap[dbfId] = Math.Max(collectionMap[dbfId], qty);
-                                    else
-                                        collectionMap[dbfId] = qty;
-                                }
+                                if (collectionMap.ContainsKey(dbfId))
+                                    collectionMap[dbfId] += card.Count;
+                                else
+                                    collectionMap[dbfId] = card.Count;
                             }
                         }
                     }
@@ -490,9 +486,8 @@ namespace HSRivalPlugin
                                 int[] counts = kvp.Value;
                                 if (dbfId > 0 && counts != null && counts.Length > 0)
                                 {
-                                    int normalCount = counts.Length > 0 ? counts[0] : 0;
-                                    int goldenCount = counts.Length > 1 ? counts[1] : 0;
-                                    int totalQty = Math.Max(normalCount, 0) + Math.Max(goldenCount, 0);
+                                    int totalQty = 0;
+                                    foreach (int c in counts) if (c > 0) totalQty += c;
                                     if (totalQty > 0)
                                     {
                                         collectionMap[dbfId] = totalQty;
