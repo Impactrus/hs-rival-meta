@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "build": "npm --prefix ../frontend install && npm --prefix ../frontend run build && node package_tracker.js",
+    "build": "cd ../frontend && npm install && npm run build && cd ../backend && node package_tracker.js",
     "dev": "nodemon server.js"
   },
   "dependencies": {
