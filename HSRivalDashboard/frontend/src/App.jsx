@@ -1084,19 +1084,6 @@ export default function App() {
           >
             {t.buyCoffee}
           </a>
-          <button 
-            onClick={handleScanCollection}
-            style={{ padding: '6px 12px', background: 'rgba(2, 132, 199, 0.25)', border: '1px solid var(--blue-hdt)', color: '#fff', borderRadius: '4px', fontWeight: '800', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
-          >
-            {t.scanCollection}
-          </button>
-          <button 
-            onClick={handleSync}
-            disabled={syncing}
-            style={{ padding: '6px 12px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: '#fff', borderRadius: '4px', fontWeight: '700', cursor: syncing ? 'not-allowed' : 'pointer', fontSize: '12px' }}
-          >
-            {syncing ? t.updating : t.syncDecks}
-          </button>
         </div>
       </header>
 

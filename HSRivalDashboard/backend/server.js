@@ -467,11 +467,17 @@ app.get('/api/collection', async (req, res) => {
     )`);
 
     if (token) {
-      // Public user — return their token-scoped collection
-      const rows = await dbAll('SELECT dbf_id, count FROM user_collections WHERE token = ?', [token]);
+      // Public user — return their token-scoped collection (with fallback to global collection)
+      let rows = await dbAll('SELECT dbf_id, count FROM user_collections WHERE token = ?', [token]);
+      if (!rows || rows.length === 0) {
+        rows = await dbAll('SELECT dbf_id, count FROM collection');
+      }
       const collection = {};
       rows.forEach(r => { collection[r.dbf_id] = r.count; });
-      const dustRow = await dbGet("SELECT value FROM user_settings WHERE token = ? AND key = 'user_dust'", [token]);
+      let dustRow = await dbGet("SELECT value FROM user_settings WHERE token = ? AND key = 'user_dust'", [token]);
+      if (!dustRow) {
+        dustRow = await dbGet("SELECT value FROM settings WHERE key = 'user_dust'");
+      }
       const dust = dustRow ? parseInt(dustRow.value, 10) : 0;
       return res.json({ collection, dust });
     }
@@ -516,9 +522,23 @@ app.post('/api/heartbeat', (req, res) => {
 
 app.get('/api/plugin-status', (req, res) => {
   const token = req.headers['x-user-token'] || req.query.token;
-  if (!token) return res.json({ connected: false });
-  const lastSeen = activePlugins.get(token);
-  const connected = !!(lastSeen && (Date.now() - lastSeen < 35000)); // connected if active within last 35 sec
+
+  // Check if token has active plugin OR if any plugin has reported in last 35 sec
+  let connected = false;
+  let lastSeen = null;
+  if (token && activePlugins.has(token)) {
+    lastSeen = activePlugins.get(token);
+    connected = Date.now() - lastSeen < 35000;
+  }
+  if (!connected) {
+    for (const [t, ts] of activePlugins.entries()) {
+      if (Date.now() - ts < 35000) {
+        connected = true;
+        lastSeen = ts;
+        break;
+      }
+    }
+  }
   res.json({ connected, lastSeen });
 });
 
@@ -536,7 +556,7 @@ app.post('/api/collection', async (req, res) => {
 
   try {
     if (token) {
-      // Public user — store in user_collections scoped by token
+      // Store in user_collections scoped by token
       await dbRun(`CREATE TABLE IF NOT EXISTS user_collections (
         token TEXT NOT NULL,
         dbf_id INTEGER NOT NULL,
@@ -545,10 +565,14 @@ app.post('/api/collection', async (req, res) => {
       )`);
       if (isFullSync) {
         await dbRun('DELETE FROM user_collections WHERE token = ?', [token]);
+        await dbRun('DELETE FROM collection');
       }
       await dbRun('BEGIN TRANSACTION');
       const stmt = db.prepare(
         'INSERT INTO user_collections (token, dbf_id, count) VALUES (?, ?, ?) ON CONFLICT(token, dbf_id) DO UPDATE SET count = MAX(count, excluded.count)'
+      );
+      const stmtGlobal = db.prepare(
+        'INSERT INTO collection (dbf_id, count) VALUES (?, ?) ON CONFLICT(dbf_id) DO UPDATE SET count = MAX(count, excluded.count)'
       );
       let count = 0;
       for (const [dbfIdStr, qty] of Object.entries(collection)) {
@@ -556,10 +580,13 @@ app.post('/api/collection', async (req, res) => {
         const quantity = parseInt(qty, 10);
         if (!isNaN(dbfId) && !isNaN(quantity) && quantity > 0) {
           stmt.run(token, dbfId, quantity);
+          stmtGlobal.run(dbfId, quantity);
           count++;
         }
       }
       stmt.finalize();
+      stmtGlobal.finalize();
+
       if (dust !== undefined && !isNaN(parseInt(dust, 10)) && parseInt(dust, 10) > 0) {
         const val = parseInt(dust, 10);
         await dbRun(`CREATE TABLE IF NOT EXISTS user_settings (
@@ -569,6 +596,7 @@ app.post('/api/collection', async (req, res) => {
           PRIMARY KEY (token, key)
         )`);
         await dbRun("INSERT INTO user_settings (token, key, value) VALUES (?, 'user_dust', ?) ON CONFLICT(token, key) DO UPDATE SET value = excluded.value", [token, val.toString()]);
+        await dbRun("INSERT INTO settings (key, value) VALUES ('user_dust', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", [val.toString()]);
       }
       await dbRun('COMMIT');
       return res.json({ success: true, message: `Zaktualizowano ${count} kart.` });
