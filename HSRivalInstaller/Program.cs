@@ -23,8 +23,13 @@ namespace HSRivalInstaller
 
                 string dllPath = Path.Combine(pluginDir, "HSRivalPlugin.dll");
 
+                string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                string hdtLocalDir = Path.Combine(localAppData, "HearthstoneDeckTracker");
+
                 // Extract embedded HSRivalPlugin.dll
                 var assembly = Assembly.GetExecutingAssembly();
+
+                // Copy to Roaming
                 using (var stream = assembly.GetManifestResourceStream("HSRivalInstaller.HSRivalPlugin.dll"))
                 {
                     if (stream != null)
@@ -32,6 +37,21 @@ namespace HSRivalInstaller
                         using (var fileStream = File.Create(dllPath))
                         {
                             stream.CopyTo(fileStream);
+                        }
+
+                        // Also copy to any app-* directories in LocalAppData
+                        if (Directory.Exists(hdtLocalDir))
+                        {
+                            foreach (var appDir in Directory.GetDirectories(hdtLocalDir, "app-*"))
+                            {
+                                try
+                                {
+                                    string localPluginDir = Path.Combine(appDir, "Plugins", "HSRivalPlugin");
+                                    Directory.CreateDirectory(localPluginDir);
+                                    File.Copy(dllPath, Path.Combine(localPluginDir, "HSRivalPlugin.dll"), true);
+                                }
+                                catch { }
+                            }
                         }
                     }
                     else
@@ -48,7 +68,7 @@ namespace HSRivalInstaller
                     string xmlContent = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n" +
                         "<ArrayOfPluginSettings xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\r\n" +
                         "  <PluginSettings>\r\n" +
-                        "    <FileName>HSRivalPlugin\\HSRivalPlugin.dll</FileName>\r\n" +
+                        "    <FileName>Plugins/HSRivalPlugin/HSRivalPlugin.dll</FileName>\r\n" +
                         "    <IsEnabled>true</IsEnabled>\r\n" +
                         "    <Name>HS Rival Meta Sync</Name>\r\n" +
                         "  </PluginSettings>\r\n" +

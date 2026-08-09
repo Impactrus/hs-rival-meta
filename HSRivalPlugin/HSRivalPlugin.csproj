@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net472</TargetFramework>
+    <TargetFramework>net48</TargetFramework>
     <UseWPF>true</UseWPF>
     <AssemblyName>HSRivalPlugin</AssemblyName>
     <RootNamespace>HSRivalPlugin</RootNamespace>

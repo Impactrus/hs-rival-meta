@@ -4,6 +4,7 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Controls;
@@ -12,7 +13,6 @@ using HearthMirror;
 using Hearthstone_Deck_Tracker;
 using Hearthstone_Deck_Tracker.API;
 using Hearthstone_Deck_Tracker.Enums.Hearthstone;
-using Hearthstone_Deck_Tracker.Hearthstone;
 using Hearthstone_Deck_Tracker.Plugins;
 using Newtonsoft.Json;
 using CoreAPI = Hearthstone_Deck_Tracker.API.Core;
@@ -27,7 +27,7 @@ namespace HSRivalPlugin
         public string Description => "Automatyczna synchronizacja kolekcji kart oraz historii meczów z portalem HS Rival Meta.";
         public string Author => "HS Rival Team";
         public string ButtonText => "Settings";
-        public Version Version => new Version(1, 0, 0);
+        public Version Version => new Version(1, 0, 1);
 
         private static TcpListener _tcpListener;
         private static bool _isRunning = false;
@@ -48,47 +48,44 @@ namespace HSRivalPlugin
 
         public void OnLoad()
         {
-            Config = PluginConfig.Load();
-            _isRunning = true;
-
-            // Subscribe to HDT game events
-            GameEvents.OnGameEnd.Add(OnGameEnd);
-            GameEvents.OnInMenu.Add(OnInMenu);
-            GameEvents.OnModeChanged.Add(OnModeChanged);
-
-            // Subscribe to HDT's internal collection changed event
             try
             {
-                if (CollectionHelpers.Hearthstone != null)
-                {
-                    CollectionHelpers.Hearthstone.OnCollectionChanged += () =>
-                    {
-                        Task.Run(async () => await SyncCollectionAsync());
-                    };
-                }
-            }
-            catch { }
+                Config = PluginConfig.Load();
+                _isRunning = true;
 
-            // Start local HTTP server using TcpListener
-            StartLocalHttpServer();
+                // Subscribe to HDT game events
+                GameEvents.OnGameEnd.Add(OnGameEnd);
+                GameEvents.OnInMenu.Add(OnInMenu);
+                GameEvents.OnModeChanged.Add(OnModeChanged);
 
-            // Start background loop for auto-syncing collection and sending heartbeat every 8s
-            Task.Run(async () =>
-            {
-                while (_isRunning)
+                // Safely subscribe to HDT's internal collection changed event (without crashing if class is missing)
+                try { SafeHDTHelper.TrySubscribeToCollectionChanged(); } catch { }
+
+                // Start local HTTP server using TcpListener
+                StartLocalHttpServer();
+
+                // Start background loop for auto-syncing collection and sending heartbeat every 8s
+                Task.Run(async () =>
                 {
-                    try
+                    while (_isRunning)
                     {
-                        await SendHeartbeatAsync();
-                        if (Config != null && Config.AutoSyncCollection)
+                        try
                         {
-                            await SyncCollectionAsync();
+                            await SendHeartbeatAsync();
+                            if (Config != null && Config.AutoSyncCollection)
+                            {
+                                await SyncCollectionAsync();
+                            }
                         }
+                        catch { }
+                        await Task.Delay(8000);
                     }
-                    catch { }
-                    await Task.Delay(8000);
-                }
-            });
+                });
+            }
+            catch (Exception ex)
+            {
+                File.AppendAllText(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HearthstoneDeckTracker", "hs_rival_plugin_error.txt"), DateTime.Now.ToString() + ": OnLoad Error - " + ex.ToString() + "\r\n");
+            }
         }
 
         public void OnUnload()
@@ -265,7 +262,7 @@ namespace HSRivalPlugin
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[HS Rival Plugin] TcpListener Error: {ex.Message}");
+                File.AppendAllText(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HearthstoneDeckTracker", "hs_rival_plugin_error.txt"), DateTime.Now.ToString() + ": TcpListener Error - " + ex.ToString() + "\r\n");
             }
         }
 
@@ -303,10 +300,7 @@ namespace HSRivalPlugin
                     await SendMatchResultAsync(playerClass, opponentClass, result, format, deckName);
                 });
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[HS Rival Plugin Error] OnGameEnd: {ex.Message}");
-            }
+            catch { }
         }
 
         public static async Task<string> SyncCollectionAsync()
@@ -321,41 +315,9 @@ namespace HSRivalPlugin
                 // 1. Primary Method: HDT's official internal CollectionHelpers.Hearthstone
                 try
                 {
-                    if (CollectionHelpers.Hearthstone != null)
-                    {
-                        var task = CollectionHelpers.Hearthstone.GetCollection();
-                        if (task != null)
-                        {
-                            var hdtColl = await task;
-                            if (hdtColl != null)
-                            {
-                                if (hdtColl.Dust > 0) userDust = hdtColl.Dust;
-                                if (hdtColl.Cards != null && hdtColl.Cards.Count > 0)
-                                {
-                                    foreach (var kvp in hdtColl.Cards)
-                                    {
-                                        int dbfId = kvp.Key;
-                                        int[] counts = kvp.Value;
-                                        if (dbfId > 0 && counts != null && counts.Length > 0)
-                                        {
-                                            int normalCount = counts.Length > 0 ? counts[0] : 0;
-                                            int goldenCount = counts.Length > 1 ? counts[1] : 0;
-                                            int totalQty = Math.Max(normalCount, 0) + Math.Max(goldenCount, 0);
-                                            if (totalQty > 0)
-                                            {
-                                                collectionMap[dbfId] = totalQty;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    await SafeHDTHelper.TryPopulateFromHDTAsync(collectionMap, dust => userDust = dust);
                 }
-                catch (Exception ex)
-                {
-                    Console.WriteLine("[HSRivalPlugin] CollectionHelpers error: " + ex.Message);
-                }
+                catch { }
 
                 // 2. Fallback Method: Direct HearthMirror RAM reading
                 if (collectionMap.Count == 0)
@@ -410,7 +372,7 @@ namespace HSRivalPlugin
 
                 if (collectionMap.Count == 0)
                 {
-                    return "Wykryto brak kolekcji. Otwórz 'Moja Kolekcja' w Hearthstone.";
+                    return "Wykryto brak kolekcji.";
                 }
 
                 // Add free Core Set cards automatically
@@ -443,7 +405,7 @@ namespace HSRivalPlugin
                     var response = await client.PostAsync($"{serverUrl}/api/collection", content);
                     if (response.IsSuccessStatusCode)
                     {
-                        return $"✓ Zsynchronizowano {collectionMap.Count} kart i {userDust} pyłu!";
+                        return $"✓ Zsynchronizowano {collectionMap.Count} kart";
                     }
                     else
                     {
@@ -453,6 +415,7 @@ namespace HSRivalPlugin
             }
             catch (Exception ex)
             {
+                File.AppendAllText(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HearthstoneDeckTracker", "hs_rival_plugin_error.txt"), DateTime.Now.ToString() + ": Sync Error - " + ex.ToString() + "\r\n");
                 return $"Błąd synchronizacji: {ex.Message}";
             }
         }
@@ -489,6 +452,57 @@ namespace HSRivalPlugin
                 }
             }
             catch { }
+        }
+    }
+
+    // Isolate HDT-specific internal types to prevent TypeLoadException from crashing the Plugin class
+    public static class SafeHDTHelper
+    {
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static void TrySubscribeToCollectionChanged()
+        {
+            if (Hearthstone_Deck_Tracker.Hearthstone.CollectionHelpers.Hearthstone != null)
+            {
+                Hearthstone_Deck_Tracker.Hearthstone.CollectionHelpers.Hearthstone.OnCollectionChanged += () =>
+                {
+                    Task.Run(async () => await Plugin.SyncCollectionAsync());
+                };
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static async Task TryPopulateFromHDTAsync(Dictionary<int, int> collectionMap, Action<int> setDust)
+        {
+            if (Hearthstone_Deck_Tracker.Hearthstone.CollectionHelpers.Hearthstone != null)
+            {
+                var task = Hearthstone_Deck_Tracker.Hearthstone.CollectionHelpers.Hearthstone.GetCollection();
+                if (task != null)
+                {
+                    var hdtColl = await task;
+                    if (hdtColl != null)
+                    {
+                        if (hdtColl.Dust > 0) setDust(hdtColl.Dust);
+                        if (hdtColl.Cards != null && hdtColl.Cards.Count > 0)
+                        {
+                            foreach (var kvp in hdtColl.Cards)
+                            {
+                                int dbfId = kvp.Key;
+                                int[] counts = kvp.Value;
+                                if (dbfId > 0 && counts != null && counts.Length > 0)
+                                {
+                                    int normalCount = counts.Length > 0 ? counts[0] : 0;
+                                    int goldenCount = counts.Length > 1 ? counts[1] : 0;
+                                    int totalQty = Math.Max(normalCount, 0) + Math.Max(goldenCount, 0);
+                                    if (totalQty > 0)
+                                    {
+                                        collectionMap[dbfId] = totalQty;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
