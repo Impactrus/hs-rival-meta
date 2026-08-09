@@ -707,6 +707,16 @@ app.get('/api/download/plugin', (req, res) => {
   }
 });
 
+// Route for downloading 1-click HDT Plugin Installer executable (Install_HSRival_Plugin.exe)
+app.get('/api/download/installer', (req, res) => {
+  const installerPath = path.join(__dirname, 'public', 'downloads', 'Install_HSRival_Plugin.exe');
+  if (fs.existsSync(installerPath)) {
+    res.download(installerPath, 'Install_HSRival_Plugin.exe');
+  } else {
+    res.status(404).json({ error: 'Installer package not found on server.' });
+  }
+});
+
 // Google Search Console verification endpoints
 app.get('/googleYuR8TPJD6dTV0k4qd1GlbDy88YgReUxKMADK8DXQMjE.html', (req, res) => {
   res.send('google-site-verification: googleYuR8TPJD6dTV0k4qd1GlbDy88YgReUxKMADK8DXQMjE.html');

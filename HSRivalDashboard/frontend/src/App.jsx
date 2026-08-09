@@ -127,7 +127,8 @@ const I18N = {
     widgetTitle: 'Enjoying the project?',
     widgetDesc: 'Support the development of HS Rival Meta and the deck scanner by buying a coffee!',
     widgetCTA: 'Buy Me a Coffee (buymeacoffee.com/impacter)',
-    downloadPlugin: '🔌 HDT Plugin (.dll)'
+    downloadPlugin: '🔌 HDT Plugin (.dll)',
+    downloadInstaller: '⚡ 1-Click HDT Installer (.exe)'
   },
   pl: {
     siteTitle: 'HS Rival Meta & Deck Tracker - Najlepsze Talie Hearthstone Po Polsku',
@@ -140,6 +141,7 @@ const I18N = {
     updating: 'Aktualizacja...',
     downloadTracker: '📥 Pobierz Tracker (HDT)',
     downloadPlugin: '🔌 Wtyczka HDT (Plugin)',
+    downloadInstaller: '⚡ Zainstaluj Wtyczkę HDT (.exe)',
     buyCoffee: '☕ Buy Me a Coffee',
     clearFilters: 'Wyczyść filtry',
     playerClass: 'Klasa Gracza',
@@ -1008,10 +1010,10 @@ export default function App() {
           )}
           {syncStatus && <span style={{ fontSize: '12px', color: 'var(--gold)', fontWeight: '600' }}>{syncStatus}</span>}
           <a
-            href="/api/download/plugin"
+            href="/api/download/installer"
             download
             style={{ 
-              padding: '6px 12px', 
+              padding: '6px 14px', 
               background: 'linear-gradient(135deg, #0284c7, #0369a1)', 
               border: '1px solid #38bdf8', 
               color: '#fff', 
@@ -1023,10 +1025,10 @@ export default function App() {
               alignItems: 'center', 
               gap: '6px',
               textDecoration: 'none',
-              boxShadow: '0 0 10px rgba(56, 189, 248, 0.3)'
+              boxShadow: '0 0 12px rgba(56, 189, 248, 0.4)'
             }}
           >
-            {t.downloadPlugin}
+            {t.downloadInstaller}
           </a>
           <a
             href="/api/download/tracker"
@@ -2002,12 +2004,12 @@ export default function App() {
                 </div>
                 <div style={{ background: 'rgba(99,102,241,0.1)', borderRadius: '6px', padding: '12px 16px', fontSize: '11px', color: '#c7d2fe' }}>
                   <strong style={{ color: '#818cf8', fontSize: '12px' }}>
-                    {lang === 'pl' ? '🔌 Najprostsza metoda — Wtyczka (Plugin) do oficjalnego HDT:' : '🔌 Easiest Method — Official HDT Plugin:'}
+                    {lang === 'pl' ? '⚡ 1-Kliknięcie — Automatyczny Instalator Wtyczki:' : '⚡ 1-Click Automatic Plugin Installer:'}
                   </strong>
                   <ol style={{ margin: '6px 0 12px 16px', padding: 0, lineHeight: '1.8' }}>
-                    <li>{lang === 'pl' ? 'Pobierz wtyczkę "Wtyczka HDT (Plugin)" z górnego paska strony' : 'Download "HDT Plugin" from top bar'}</li>
-                    <li>{lang === 'pl' ? 'Rozpakuj HSRivalPlugin.dll do folderu: %APPDATA%\\HearthstoneDeckTracker\\Plugins\\HSRivalPlugin\\' : 'Extract HSRivalPlugin.dll into: %APPDATA%\\HearthstoneDeckTracker\\Plugins\\HSRivalPlugin\\'}</li>
-                    <li>{lang === 'pl' ? 'Włącz oficjalny HDT -> Opcje -> Wtyczki -> HS Rival Meta -> Wklej powyższy token!' : 'Launch official HDT -> Options -> Plugins -> HS Rival Meta -> Paste sync token!'}</li>
+                    <li>{lang === 'pl' ? 'Pobierz "⚡ Zainstaluj Wtyczkę HDT (.exe)" przyciskiem z górnego paska' : 'Download "⚡ 1-Click HDT Installer (.exe)" from top bar'}</li>
+                    <li>{lang === 'pl' ? 'Uruchom plik — wtyczka zainstaluje się sama w Twoim HDT w 1 sekundę!' : 'Run the file — plugin installs into your HDT automatically in 1 second!'}</li>
+                    <li>{lang === 'pl' ? 'Włącz oficjalny HDT oraz naszą stronę — połączą się i zsynchronizują same!' : 'Launch official HDT & website — they pair & sync automatically!'}</li>
                   </ol>
                   <strong style={{ color: '#a7f3d0' }}>
                     {lang === 'pl' ? '💻 Opcja alternatywna — nasz dedykowany mini-tracker:' : '💻 Alternative Option — Standalone Mini Tracker:'}

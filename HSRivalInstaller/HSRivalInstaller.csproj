@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net472</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>Install_HSRival_Plugin</AssemblyName>
+    <RootNamespace>HSRivalInstaller</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\HSRivalPlugin\bin\Debug\net472\HSRivalPlugin.dll">
+      <Link>HSRivalPlugin.dll</Link>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>
