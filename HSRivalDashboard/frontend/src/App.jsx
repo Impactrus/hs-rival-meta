@@ -265,11 +265,12 @@ function CardRow({ card, missing, lang = 'en' }) {
   const fullCardUrl = `https://art.hearthstonejson.com/v1/render/latest/${lang === 'pl' ? 'plPL' : 'enUS'}/512x/${card.id}.png`;
   const displayName = lang === 'pl' ? (card.name_pl || card.name) : (card.name_en || card.name);
   
-  const isMissingAll = card.owned === 0;
-  const isPartial = card.owned > 0 && card.owned < card.count;
+  const isCore = card.rarity === 'FREE' || (card.id && card.id.startsWith('CORE_'));
+  const isMissingAll = !isCore && card.owned === 0;
+  const isPartial = !isCore && card.owned > 0 && card.owned < card.count;
   
-  const bg = isMissingAll ? '#fff5f5' : (isPartial ? '#fffbeb' : '#ffffff');
-  const border = isMissingAll ? '#fca5a5' : (isPartial ? '#fcd34d' : '#cbd5e1');
+  const bg = isCore ? '#f0f9ff' : (isMissingAll ? '#fff5f5' : (isPartial ? '#fffbeb' : '#ffffff'));
+  const border = isCore ? '#bae6fd' : (isMissingAll ? '#fca5a5' : (isPartial ? '#fcd34d' : '#cbd5e1'));
 
   const handleMouseEnter = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -356,12 +357,16 @@ function CardRow({ card, missing, lang = 'en' }) {
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
           fontSize: '14px', fontWeight: '800',
-          color: isMissingAll ? '#dc2626' : (isPartial ? '#b45309' : '#0f172a'),
+          color: isCore ? '#0369a1' : (isMissingAll ? '#dc2626' : (isPartial ? '#b45309' : '#0f172a')),
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
         }}>
           {displayName || card.id}
         </div>
-        {card.owned >= card.count ? (
+        {isCore ? (
+          <div style={{ fontSize: '11px', color: '#0284c7', fontWeight: '700' }}>
+            {lang === 'pl' ? `🎁 darmowa (Zestaw Bazowy)` : `🎁 free (Core Set)`}
+          </div>
+        ) : card.owned >= card.count ? (
           <div style={{ fontSize: '11px', color: '#16a34a', fontWeight: '700' }}>
             {lang === 'pl' ? `✓ posiadasz (${card.count}/${card.count})` : `✓ owned (${card.count}/${card.count})`}
           </div>
@@ -375,6 +380,7 @@ function CardRow({ card, missing, lang = 'en' }) {
           </div>
         )}
       </div>
+
       {/* Count badge */}
       <div style={{
         fontSize: '12px', fontWeight: '800', color: '#fff',
