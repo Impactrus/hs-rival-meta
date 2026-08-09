@@ -471,34 +471,45 @@ export default function App() {
   // Visitor counter
   const [visitStats, setVisitStats] = useState(null);
 
-  // Zero-click local HDT plugin detection & automatic token pairing
+  // HTTPS-safe HDT plugin connection status check & collection auto-refresh
   useEffect(() => {
     const checkHdtPlugin = async () => {
+      if (!userToken) return;
       try {
-        const res = await fetch('http://127.0.0.1:48854/ping');
+        const res = await fetch(`${API_URL}/plugin-status`, {
+          headers: { 'X-User-Token': userToken }
+        });
         if (res.ok) {
           const data = await res.json();
-          setHdtConnected(true);
-          // Automatically pair web userToken to HDT plugin
-          if (userToken && data.userToken !== userToken) {
-            try {
-              await fetch('http://127.0.0.1:48854/token', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token: userToken })
-              });
-              // Refresh collection after pairing
-              fetchCollection();
-            } catch {}
+          if (data.connected) {
+            setHdtConnected(true);
+            fetchCollection();
+          } else {
+            setHdtConnected(false);
           }
         }
       } catch {
         setHdtConnected(false);
       }
+
+      // Optional local HTTP pairing attempt
+      try {
+        const localRes = await fetch('http://127.0.0.1:48854/ping');
+        if (localRes.ok) {
+          const localData = await localRes.json();
+          if (userToken && localData.userToken !== userToken) {
+            await fetch('http://127.0.0.1:48854/token', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ token: userToken })
+            });
+          }
+        }
+      } catch {}
     };
 
     checkHdtPlugin();
-    const interval = setInterval(checkHdtPlugin, 8000);
+    const interval = setInterval(checkHdtPlugin, 6000);
     return () => clearInterval(interval);
   }, [userToken]);
 

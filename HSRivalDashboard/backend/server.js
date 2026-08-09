@@ -503,9 +503,31 @@ app.post('/api/collection/dust', async (req, res) => {
   }
 });
 
+// In-memory active plugin session tracking (token -> lastSeen timestamp)
+const activePlugins = new Map();
+
+app.post('/api/heartbeat', (req, res) => {
+  const token = req.headers['x-user-token'] || req.body.token;
+  if (token) {
+    activePlugins.set(token, Date.now());
+  }
+  res.json({ success: true, timestamp: Date.now() });
+});
+
+app.get('/api/plugin-status', (req, res) => {
+  const token = req.headers['x-user-token'] || req.query.token;
+  if (!token) return res.json({ connected: false });
+  const lastSeen = activePlugins.get(token);
+  const connected = !!(lastSeen && (Date.now() - lastSeen < 35000)); // connected if active within last 35 sec
+  res.json({ connected, lastSeen });
+});
+
 // 6. Save player collection (called by manual upload or by C# tracker)
 app.post('/api/collection', async (req, res) => {
   const token = req.headers['x-user-token'] || req.body.token;
+  if (token) {
+    activePlugins.set(token, Date.now());
+  }
   const { collection, dust, isFullSync } = req.body;
 
   if (!collection) {

@@ -69,23 +69,24 @@ namespace HSRivalPlugin
             }
             catch { }
 
-            // Start local HTTP server using TcpListener (bypasses Windows HttpListener admin restrictions)
+            // Start local HTTP server using TcpListener
             StartLocalHttpServer();
 
-            // Start background loop for auto-syncing collection whenever available
+            // Start background loop for auto-syncing collection and sending heartbeat every 8s
             Task.Run(async () =>
             {
                 while (_isRunning)
                 {
                     try
                     {
+                        await SendHeartbeatAsync();
                         if (Config != null && Config.AutoSyncCollection)
                         {
                             await SyncCollectionAsync();
                         }
                     }
                     catch { }
-                    await Task.Delay(8000); // Sync check every 8 seconds
+                    await Task.Delay(8000);
                 }
             });
         }
@@ -111,6 +112,23 @@ namespace HSRivalPlugin
 
         public void OnUpdate()
         {
+        }
+
+        private static async Task SendHeartbeatAsync()
+        {
+            if (Config == null || string.IsNullOrWhiteSpace(Config.UserToken)) return;
+            try
+            {
+                using (var client = new HttpClient())
+                {
+                    client.DefaultRequestHeaders.Add("X-User-Token", Config.UserToken);
+                    string serverUrl = string.IsNullOrWhiteSpace(Config.ServerUrl)
+                        ? "https://hs-rival-meta.onrender.com"
+                        : Config.ServerUrl.TrimEnd('/');
+                    await client.PostAsync($"{serverUrl}/api/heartbeat", new StringContent("{}", Encoding.UTF8, "application/json"));
+                }
+            }
+            catch { }
         }
 
         private static void StartLocalHttpServer()
