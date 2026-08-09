@@ -405,6 +405,7 @@ export default function App() {
   const [collection, setCollection] = useState({});
   const [matchups, setMatchups] = useState({});
   const [loadingDecks, setLoadingDecks] = useState(false);
+  const [hdtConnected, setHdtConnected] = useState(false);
   const [deckOffset, setDeckOffset] = useState(0);
   const [hasMoreDecks, setHasMoreDecks] = useState(true);
   const loadMoreRef = useRef(null);
@@ -467,6 +468,37 @@ export default function App() {
 
   // Visitor counter
   const [visitStats, setVisitStats] = useState(null);
+
+  // Zero-click local HDT plugin detection & automatic token pairing
+  useEffect(() => {
+    const checkHdtPlugin = async () => {
+      try {
+        const res = await fetch('http://127.0.0.1:48854/ping');
+        if (res.ok) {
+          const data = await res.json();
+          setHdtConnected(true);
+          // Automatically pair web userToken to HDT plugin
+          if (userToken && data.userToken !== userToken) {
+            try {
+              await fetch('http://127.0.0.1:48854/token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: userToken })
+              });
+              // Refresh collection after pairing
+              fetchCollection();
+            } catch {}
+          }
+        }
+      } catch {
+        setHdtConnected(false);
+      }
+    };
+
+    checkHdtPlugin();
+    const interval = setInterval(checkHdtPlugin, 8000);
+    return () => clearInterval(interval);
+  }, [userToken]);
 
   // Track visit once per session & fetch stats
   useEffect(() => {
@@ -969,6 +1001,11 @@ export default function App() {
             </button>
           </div>
 
+          {hdtConnected && (
+            <span style={{ padding: '5px 12px', background: 'rgba(34,197,94,0.15)', border: '1px solid #22c55e', color: '#4ade80', borderRadius: '20px', fontSize: '12px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 0 10px rgba(34,197,94,0.2)' }}>
+              🟢 {lang === 'pl' ? 'HDT Połączony!' : 'HDT Connected!'}
+            </span>
+          )}
           {syncStatus && <span style={{ fontSize: '12px', color: 'var(--gold)', fontWeight: '600' }}>{syncStatus}</span>}
           <a
             href="/api/download/plugin"
@@ -1913,6 +1950,23 @@ export default function App() {
                   </div>
                 </div>
               </div>
+
+              {/* HDT Plugin Connection Status Banner */}
+              {hdtConnected ? (
+                <div style={{ background: 'linear-gradient(135deg, #064e3b, #047857)', border: '1px solid #34d399', borderRadius: '8px', padding: '16px 20px', color: '#ecfdf5', fontWeight: '700', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 4px 15px rgba(52, 211, 153, 0.15)' }}>
+                  <span style={{ fontSize: '24px' }}>⚡</span>
+                  <div>
+                    <div style={{ fontSize: '14px', fontWeight: '800', color: '#6ee7b7' }}>
+                      {lang === 'pl' ? '🟢 Oficjalny HDT Połączony Automatycznie!' : '🟢 Official HDT Connected Automatically!'}
+                    </div>
+                    <div style={{ fontSize: '12px', marginTop: '2px', opacity: 0.9 }}>
+                      {lang === 'pl' 
+                        ? 'Wtyczka wykryta w Twoim HDT. Token został powiązany bez Twojego udziału. Wygląda na to, że wszystko działa w tle!' 
+                        : 'Plugin detected in your HDT. Token paired automatically. Everything is running in the background!'}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
 
               {/* Token panel for tracker sync */}
               <div style={{ background: 'linear-gradient(135deg, #0f172a, #1e1b4b)', border: '1px solid #3730a3', borderRadius: '8px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>

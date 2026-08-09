@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
@@ -25,6 +27,8 @@ namespace HSRivalPlugin
         public string ButtonText => "Settings";
         public Version Version => new Version(1, 0, 0);
 
+        private static HttpListener _localListener;
+
         private MenuItem _menuItem;
         public MenuItem MenuItem
         {
@@ -48,6 +52,9 @@ namespace HSRivalPlugin
             GameEvents.OnInMenu.Add(OnInMenu);
             GameEvents.OnModeChanged.Add(OnModeChanged);
 
+            // Start local HTTP listener for zero-click website pairing
+            StartLocalHttpListener();
+
             // Trigger collection sync when plugin loads
             Task.Run(async () =>
             {
@@ -58,7 +65,15 @@ namespace HSRivalPlugin
 
         public void OnUnload()
         {
-            // Unsubscribe from events
+            try
+            {
+                if (_localListener != null && _localListener.IsListening)
+                {
+                    _localListener.Stop();
+                    _localListener.Close();
+                }
+            }
+            catch { }
         }
 
         public void OnButtonPress()
@@ -69,6 +84,101 @@ namespace HSRivalPlugin
 
         public void OnUpdate()
         {
+        }
+
+        private static void StartLocalHttpListener()
+        {
+            try
+            {
+                _localListener = new HttpListener();
+                _localListener.Prefixes.Add("http://127.0.0.1:48854/");
+                _localListener.Start();
+
+                Task.Run(async () =>
+                {
+                    while (_localListener != null && _localListener.IsListening)
+                    {
+                        try
+                        {
+                            var ctx = await _localListener.GetContextAsync();
+                            var req = ctx.Request;
+                            var res = ctx.Response;
+
+                            // Add CORS headers so web app can communicate with HDT plugin locally
+                            res.Headers.Add("Access-Control-Allow-Origin", "*");
+                            res.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+                            res.Headers.Add("Access-Control-Allow-Headers", "Content-Type");
+
+                            if (req.HttpMethod == "OPTIONS")
+                            {
+                                res.StatusCode = 200;
+                                res.Close();
+                                continue;
+                            }
+
+                            if (req.Url.AbsolutePath == "/ping")
+                            {
+                                string responseString = JsonConvert.SerializeObject(new
+                                {
+                                    status = "ok",
+                                    hasToken = !string.IsNullOrWhiteSpace(Config?.UserToken),
+                                    userToken = Config?.UserToken ?? ""
+                                });
+                                byte[] buffer = Encoding.UTF8.GetBytes(responseString);
+                                res.ContentType = "application/json";
+                                res.ContentLength64 = buffer.Length;
+                                await res.OutputStream.WriteAsync(buffer, 0, buffer.Length);
+                            }
+                            else if (req.Url.AbsolutePath == "/token" && (req.HttpMethod == "POST" || req.HttpMethod == "GET"))
+                            {
+                                string newToken = req.QueryString["token"];
+                                if (string.IsNullOrWhiteSpace(newToken) && req.HasEntityBody)
+                                {
+                                    using (var reader = new StreamReader(req.InputStream, req.ContentEncoding))
+                                    {
+                                        string body = await reader.ReadToEndAsync();
+                                        try
+                                        {
+                                            var payload = JsonConvert.DeserializeObject<Dictionary<string, string>>(body);
+                                            if (payload != null && payload.ContainsKey("token"))
+                                                newToken = payload["token"];
+                                        }
+                                        catch { }
+                                    }
+                                }
+
+                                if (!string.IsNullOrWhiteSpace(newToken))
+                                {
+                                    Config.UserToken = newToken.Trim();
+                                    Config.Save();
+                                    Task.Run(async () => await SyncCollectionAsync());
+                                }
+
+                                string responseString = JsonConvert.SerializeObject(new
+                                {
+                                    success = true,
+                                    userToken = Config.UserToken
+                                });
+                                byte[] buffer = Encoding.UTF8.GetBytes(responseString);
+                                res.ContentType = "application/json";
+                                res.ContentLength64 = buffer.Length;
+                                await res.OutputStream.WriteAsync(buffer, 0, buffer.Length);
+                            }
+                            else
+                            {
+                                res.StatusCode = 404;
+                            }
+
+                            res.Close();
+                        }
+                        catch { }
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[HS Rival Plugin] Failed to start local listener: {ex.Message}");
+            }
         }
 
         private static void OnInMenu()
