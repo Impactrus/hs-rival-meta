@@ -28,6 +28,7 @@ namespace HSRivalPlugin
         public Version Version => new Version(1, 0, 0);
 
         private static HttpListener _localListener;
+        private static bool _isRunning = false;
 
         private MenuItem _menuItem;
         public MenuItem MenuItem
@@ -46,25 +47,37 @@ namespace HSRivalPlugin
         public void OnLoad()
         {
             Config = PluginConfig.Load();
+            _isRunning = true;
 
             // Subscribe to HDT events
             GameEvents.OnGameEnd.Add(OnGameEnd);
             GameEvents.OnInMenu.Add(OnInMenu);
             GameEvents.OnModeChanged.Add(OnModeChanged);
 
-            // Start local HTTP listener for zero-click website pairing
+            // Start local HTTP listener for zero-click web app pairing
             StartLocalHttpListener();
 
-            // Trigger collection sync when plugin loads
+            // Start background loop for auto-syncing collection whenever available
             Task.Run(async () =>
             {
-                await Task.Delay(3000); // Give HearthMirror a moment to initialize
-                await SyncCollectionAsync();
+                while (_isRunning)
+                {
+                    try
+                    {
+                        if (Config != null && Config.AutoSyncCollection)
+                        {
+                            await SyncCollectionAsync();
+                        }
+                    }
+                    catch { }
+                    await Task.Delay(10000); // Check/sync every 10 seconds
+                }
             });
         }
 
         public void OnUnload()
         {
+            _isRunning = false;
             try
             {
                 if (_localListener != null && _localListener.IsListening)
@@ -227,40 +240,85 @@ namespace HSRivalPlugin
 
             try
             {
-                // Retrieve collection via HearthMirror Client
-                var mirrorCollection = Reflection.Client.GetCollection();
-                if (mirrorCollection == null || mirrorCollection.Count == 0)
+                List<HearthMirror.Objects.Card> mirrorCards = null;
+                int userDust = 0;
+
+                // 1. Try FullCollection via Reflection.Client
+                try
                 {
-                    return "Wykryto brak kolekcji w pamięci (otwórz zakładkę Kolekcja w Hearthstone).";
+                    var fullColl = Reflection.Client.GetFullCollection();
+                    if (fullColl != null)
+                    {
+                        mirrorCards = fullColl.Cards;
+                        userDust = fullColl.Dust;
+                    }
+                }
+                catch { }
+
+                // 2. Try GetCollection via Reflection.Client fallback
+                if (mirrorCards == null || mirrorCards.Count == 0)
+                {
+                    try
+                    {
+                        mirrorCards = Reflection.Client.GetCollection();
+                    }
+                    catch { }
                 }
 
                 var collectionMap = new Dictionary<int, int>();
-                foreach (var card in mirrorCollection)
+
+                // Parse mirror cards if available
+                if (mirrorCards != null && mirrorCards.Count > 0)
                 {
-                    if (card == null || string.IsNullOrEmpty(card.Id)) continue;
+                    foreach (var card in mirrorCards)
+                    {
+                        if (card == null || string.IsNullOrEmpty(card.Id)) continue;
 
-                    // Convert card ID (e.g. EX1_012) to dbfId
-                    int dbfId = 0;
-                    if (Cards.CardIdToDbfId.TryGetValue(card.Id, out int mappedDbfId))
-                    {
-                        dbfId = mappedDbfId;
-                    }
-                    else if (Cards.All.TryGetValue(card.Id, out var hearthDbCard))
-                    {
-                        dbfId = hearthDbCard.DbfId;
-                    }
-
-                    if (dbfId > 0)
-                    {
-                        int qty = Math.Max(card.Count, card.PremiumType > 0 ? 1 : 0);
-                        if (qty > 0)
+                        int dbfId = 0;
+                        if (Cards.CardIdToDbfId.TryGetValue(card.Id, out int mappedDbfId))
                         {
-                            if (collectionMap.ContainsKey(dbfId))
-                                collectionMap[dbfId] = Math.Max(collectionMap[dbfId], qty);
-                            else
-                                collectionMap[dbfId] = qty;
+                            dbfId = mappedDbfId;
+                        }
+                        else if (Cards.All.TryGetValue(card.Id, out var hearthDbCard))
+                        {
+                            dbfId = hearthDbCard.DbfId;
+                        }
+
+                        if (dbfId > 0)
+                        {
+                            int qty = Math.Max(card.Count, card.PremiumType > 0 ? 1 : 0);
+                            if (qty > 0)
+                            {
+                                if (collectionMap.ContainsKey(dbfId))
+                                    collectionMap[dbfId] = Math.Max(collectionMap[dbfId], qty);
+                                else
+                                    collectionMap[dbfId] = qty;
+                            }
                         }
                     }
+                }
+
+                // Fallback: extract cards from HDT active player decks if RAM memory reader was empty
+                if (collectionMap.Count == 0 && DeckList.Instance != null && DeckList.Instance.Decks != null)
+                {
+                    foreach (var deck in DeckList.Instance.Decks)
+                    {
+                        if (deck == null || deck.Cards == null) continue;
+                        foreach (var card in deck.Cards)
+                        {
+                            if (card == null || card.DbfId <= 0) continue;
+                            int count = card.Count;
+                            if (collectionMap.ContainsKey(card.DbfId))
+                                collectionMap[card.DbfId] = Math.Max(collectionMap[card.DbfId], count);
+                            else
+                                collectionMap[card.DbfId] = count;
+                        }
+                    }
+                }
+
+                if (collectionMap.Count == 0)
+                {
+                    return "Wykryto brak kolekcji w pamięci. Wejdź do zakładki 'Moja Kolekcja' w Hearthstone.";
                 }
 
                 // Add free Core Set cards automatically
@@ -277,7 +335,7 @@ namespace HSRivalPlugin
                 // Send to server
                 using (var client = new HttpClient())
                 {
-                    var payload = new { collection = collectionMap, isFullSync = true };
+                    var payload = new { collection = collectionMap, dust = userDust, isFullSync = true };
                     string json = JsonConvert.SerializeObject(payload);
                     var content = new StringContent(json, Encoding.UTF8, "application/json");
 
@@ -303,7 +361,7 @@ namespace HSRivalPlugin
             }
             catch (Exception ex)
             {
-                return $"Błąd skanowania pamięci: {ex.Message}";
+                return $"Błąd synchronizacji: {ex.Message}";
             }
         }
 

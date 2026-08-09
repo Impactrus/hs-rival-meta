@@ -458,12 +458,22 @@ app.get('/api/collection', async (req, res) => {
       PRIMARY KEY (token, dbf_id)
     )`);
 
+    // Ensure user_settings table exists
+    await dbRun(`CREATE TABLE IF NOT EXISTS user_settings (
+      token TEXT NOT NULL,
+      key TEXT NOT NULL,
+      value TEXT NOT NULL,
+      PRIMARY KEY (token, key)
+    )`);
+
     if (token) {
       // Public user — return their token-scoped collection
       const rows = await dbAll('SELECT dbf_id, count FROM user_collections WHERE token = ?', [token]);
       const collection = {};
       rows.forEach(r => { collection[r.dbf_id] = r.count; });
-      return res.json({ collection, dust: 0 });
+      const dustRow = await dbGet("SELECT value FROM user_settings WHERE token = ? AND key = 'user_dust'", [token]);
+      const dust = dustRow ? parseInt(dustRow.value, 10) : 0;
+      return res.json({ collection, dust });
     }
 
     // Local use (no token) — return DB collection
@@ -528,6 +538,16 @@ app.post('/api/collection', async (req, res) => {
         }
       }
       stmt.finalize();
+      if (dust !== undefined && !isNaN(parseInt(dust, 10)) && parseInt(dust, 10) > 0) {
+        const val = parseInt(dust, 10);
+        await dbRun(`CREATE TABLE IF NOT EXISTS user_settings (
+          token TEXT NOT NULL,
+          key TEXT NOT NULL,
+          value TEXT NOT NULL,
+          PRIMARY KEY (token, key)
+        )`);
+        await dbRun("INSERT INTO user_settings (token, key, value) VALUES (?, 'user_dust', ?) ON CONFLICT(token, key) DO UPDATE SET value = excluded.value", [token, val.toString()]);
+      }
       await dbRun('COMMIT');
       return res.json({ success: true, message: `Zaktualizowano ${count} kart.` });
     }
