@@ -5,7 +5,6 @@ yarn-debug.log*
 yarn-error.log*
 
 # Build outputs
-HSRivalDashboard/frontend/dist/
 HSRivalDashboard/backend/temp_stage/
 
 # Unity temporary folders
