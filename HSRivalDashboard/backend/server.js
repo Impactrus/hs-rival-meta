@@ -608,13 +608,27 @@ app.get('/api/download/tracker', (req, res) => {
   }
 });
 
-// Google Search Console verification file endpoint
+// Google Search Console verification endpoints
 app.get('/googleYuR8TPJD6dTV0k4qd1GlbDy88YgReUxKMADK8DXQMjE.html', (req, res) => {
   res.send('google-site-verification: googleYuR8TPJD6dTV0k4qd1GlbDy88YgReUxKMADK8DXQMjE.html');
 });
 
-// Serve frontend static build files in production mode
 const frontendDistPath = path.join(__dirname, '..', 'frontend', 'dist');
+
+// Serve index.html with guaranteed google-site-verification tag
+app.get(['/', '/index.html'], (req, res) => {
+  const htmlPath = path.join(frontendDistPath, 'index.html');
+  if (fs.existsSync(htmlPath)) {
+    let content = fs.readFileSync(htmlPath, 'utf8');
+    if (!content.includes('google-site-verification')) {
+      content = content.replace('<head>', '<head>\n    <meta name="google-site-verification" content="YuR8TPJD6dTV0k4qd1GlbDy88YgReUxKMADK8DXQMjE" />');
+    }
+    return res.send(content);
+  }
+  res.status(404).send('Frontend build not found');
+});
+
+// Serve frontend static build assets in production mode
 if (fs.existsSync(frontendDistPath)) {
   app.use(express.static(frontendDistPath));
   app.get('*', (req, res, next) => {
