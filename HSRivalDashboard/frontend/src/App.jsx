@@ -1022,7 +1022,7 @@ export default function App() {
           )}
           {syncStatus && <span style={{ fontSize: '12px', color: 'var(--gold)', fontWeight: '600' }}>{syncStatus}</span>}
           <a
-            href="/api/download/installer"
+            href="/api/download/plugin"
             download
             style={{ 
               padding: '6px 14px', 
@@ -1040,7 +1040,7 @@ export default function App() {
               boxShadow: '0 0 12px rgba(56, 189, 248, 0.4)'
             }}
           >
-            {t.downloadInstaller}
+            <span>⬇️</span> {lang === 'pl' ? 'Pobierz Paczkę Wtyczki (.zip)' : 'Download Plugin (.zip)'}
           </a>
           <a
             href="/api/download/tracker"
