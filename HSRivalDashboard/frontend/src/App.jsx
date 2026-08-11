@@ -414,17 +414,48 @@ export default function App() {
   const fetchAllOriginsMeta = async () => {
     setIsSyncingMeta(true);
     try {
-      const res = await fetch(API_URL + "/meta/sync-allorigins", {
-        method: "POST"
+      const targetUrl = "https://hsreplay.net/analytics/query/list_decks_by_win_rate_v2/?GameType=RANKED_STANDARD&LeagueRankRange=GOLD&Region=ALL&TimeRange=CURRENT_EXPANSION";
+      
+      let hsreplayData = null;
+      let fetchError = null;
+
+      // Próba 1: corsproxy.io
+      try {
+        const proxy1 = "https://corsproxy.io/?" + encodeURIComponent(targetUrl);
+        const res1 = await fetch(proxy1);
+        if (!res1.ok) throw new Error("Corsproxy failed");
+        hsreplayData = await res1.json();
+      } catch (e1) {
+        // Próba 2: allorigins.win
+        try {
+          const proxy2 = "https://api.allorigins.win/get?url=" + encodeURIComponent(targetUrl);
+          const res2 = await fetch(proxy2);
+          if (!res2.ok) throw new Error("Allorigins failed");
+          const data2 = await res2.json();
+          if (!data2.contents) throw new Error("No contents");
+          hsreplayData = JSON.parse(data2.contents);
+        } catch (e2) {
+          fetchError = e2;
+        }
+      }
+
+      if (!hsreplayData) {
+        throw new Error("AdBlock zablokował pobieranie! Wyłącz na chwilę AdBlocka / uBlocka (czerwona ikona u góry przeglądarki) i kliknij jeszcze raz.");
+      }
+      
+      // Wyślij na własny serwer (to nigdy nie jest blokowane)
+      const res = await fetch(API_URL + "/meta/hsreplay-sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(hsreplayData)
       });
       
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Błąd serwera");
+      if (!res.ok) throw new Error("Błąd zapisu w bazie danych");
       
       alert(lang === 'pl' ? 'Sukces! Statystyki zostały zaktualizowane z HSReplay!' : 'Success! Stats updated from HSReplay!');
       window.location.reload();
     } catch (err) {
-      alert((lang === 'pl' ? 'Wystąpił błąd podczas aktualizacji: ' : 'Error updating stats: ') + err.message);
+      alert((lang === 'pl' ? 'Błąd: ' : 'Error: ') + err.message);
     } finally {
       setIsSyncingMeta(false);
     }
