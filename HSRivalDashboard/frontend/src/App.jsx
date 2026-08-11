@@ -1022,25 +1022,29 @@ export default function App() {
           )}
           {syncStatus && <span style={{ fontSize: '12px', color: 'var(--gold)', fontWeight: '600' }}>{syncStatus}</span>}
           <a
-            href="/api/download/plugin"
-            download
+            href='javascript:(async function(){try{alert("HS Rival: Pobieram...");const r=await fetch("https://hsreplay.net/analytics/query/list_decks_by_win_rate_v2/?GameType=RANKED_STANDARD&LeagueRankRange=GOLD&Region=ALL&TimeRange=CURRENT_EXPANSION");const d=await r.json();await fetch("https://hs-rival-meta.onrender.com/api/meta/hsreplay-sync",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)});alert("HS Rival: Sukces! Wroc na strone HS Rival!");}catch(e){alert("HS Rival Blad: "+e.message);}})();'
+            onClick={(e) => {
+              e.preventDefault();
+              alert(lang === 'pl' ? 'Przeciągnij ten przycisk na swój pasek zakładek w przeglądarce, a następnie wejdź na hsreplay.net i kliknij zakładkę!' : 'Drag this button to your bookmarks bar, then visit hsreplay.net and click the bookmark!');
+            }}
             style={{ 
               padding: '6px 14px', 
-              background: 'linear-gradient(135deg, #0284c7, #0369a1)', 
-              border: '1px solid #38bdf8', 
+              background: 'linear-gradient(135deg, #a855f7, #9333ea)', 
+              border: '1px solid #c084fc', 
               color: '#fff', 
               borderRadius: '4px', 
               fontWeight: '800', 
-              cursor: 'pointer', 
+              cursor: 'grab', 
               fontSize: '12px', 
               display: 'flex', 
               alignItems: 'center', 
               gap: '6px',
               textDecoration: 'none',
-              boxShadow: '0 0 12px rgba(56, 189, 248, 0.4)'
+              boxShadow: '0 0 12px rgba(168, 85, 247, 0.4)'
             }}
+            title={lang === 'pl' ? "Przeciągnij mnie na pasek zakładek!" : "Drag me to bookmarks!"}
           >
-            <span>⬇️</span> {lang === 'pl' ? 'Pobierz Paczkę Wtyczki (.zip)' : 'Download Plugin (.zip)'}
+            <span>🪄</span> {lang === 'pl' ? 'Aktualizuj Meta (Przeciągnij)' : 'Update Meta (Drag me)'}
           </a>
           <a
             href="/api/download/tracker"
