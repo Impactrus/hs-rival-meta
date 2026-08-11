@@ -43,9 +43,25 @@ namespace HSRivalInstaller
                     {
                         if (stream != null)
                         {
-                            using (var fileStream = File.Create(Path.Combine(pluginDir, resName)))
+                            string targetPath = Path.Combine(pluginDir, resName);
+                            using (var fileStream = File.Create(targetPath))
                             {
                                 stream.CopyTo(fileStream);
+                            }
+                            
+                            // Also copy to any app-* directories in LocalAppData
+                            if (Directory.Exists(hdtLocalDir))
+                            {
+                                foreach (var appDir in Directory.GetDirectories(hdtLocalDir, "app-*"))
+                                {
+                                    try
+                                    {
+                                        string localPluginDir = Path.Combine(appDir, "Plugins", "HSRivalPlugin");
+                                        Directory.CreateDirectory(localPluginDir);
+                                        File.Copy(targetPath, Path.Combine(localPluginDir, resName), true);
+                                    }
+                                    catch { }
+                                }
                             }
                         }
                     }
