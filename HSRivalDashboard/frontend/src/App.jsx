@@ -413,7 +413,8 @@ export default function App() {
 
   useEffect(() => {
     if (bookmarkletRef.current) {
-      bookmarkletRef.current.href = `javascript:(async function(){try{const r=await fetch("https://hsreplay.net/analytics/query/list_decks_by_win_rate_v2/?GameType=RANKED_STANDARD&LeagueRankRange=GOLD&Region=ALL&TimeRange=CURRENT_EXPANSION");const d=await r.text();const f=document.createElement('form');f.method='POST';f.action='https://hs-rival-meta.onrender.com/api/meta/hsreplay-sync';f.target='_blank';const i=document.createElement('input');i.type='hidden';i.name='payload';i.value=d;f.appendChild(i);document.body.appendChild(f);f.submit();}catch(e){alert("HS Rival Blad: "+e.message);}})();`;
+      const script = `(async function(){try{const r=await fetch('https://hsreplay.net/analytics/query/list_decks_by_win_rate_v2/?GameType=RANKED_STANDARD&LeagueRankRange=GOLD&Region=ALL&TimeRange=CURRENT_EXPANSION');const d=await r.text();const f=document.createElement('form');f.method='POST';f.action='https://hs-rival-meta.onrender.com/api/meta/hsreplay-sync';f.target='_blank';const i=document.createElement('input');i.type='hidden';i.name='payload';i.value=d;f.appendChild(i);document.body.appendChild(f);f.submit();}catch(e){alert('HS Rival Blad: '+e.message);}})();`;
+      bookmarkletRef.current.href = 'javascript:' + encodeURIComponent(script);
     }
   }, []);
 
