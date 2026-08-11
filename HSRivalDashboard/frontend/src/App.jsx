@@ -407,16 +407,37 @@ export default function App() {
   const [deckOffset, setDeckOffset] = useState(0);
   const [hasMoreDecks, setHasMoreDecks] = useState(true);
   const loadMoreRef = useRef(null);
-  const bookmarkletRef = useRef(null);
   const DECK_BATCH = 20;
   const [loadingMatches, setLoadingMatches] = useState(false);
+  const [isSyncingMeta, setIsSyncingMeta] = useState(false);
 
-  useEffect(() => {
-    if (bookmarkletRef.current) {
-      const script = `(async function(){try{const r=await fetch('https://hsreplay.net/analytics/query/list_decks_by_win_rate_v2/?GameType=RANKED_STANDARD&LeagueRankRange=GOLD&Region=ALL&TimeRange=CURRENT_EXPANSION');const d=await r.text();const f=document.createElement('form');f.method='POST';f.action='https://hs-rival-meta.onrender.com/api/meta/hsreplay-sync';f.target='_blank';const i=document.createElement('input');i.type='hidden';i.name='payload';i.value=d;f.appendChild(i);document.body.appendChild(f);f.submit();}catch(e){alert('HS Rival Blad: '+e.message);}})();`;
-      bookmarkletRef.current.href = 'javascript:' + encodeURIComponent(script);
+  const fetchAllOriginsMeta = async () => {
+    setIsSyncingMeta(true);
+    try {
+      const url = "https://hsreplay.net/analytics/query/list_decks_by_win_rate_v2/?GameType=RANKED_STANDARD&LeagueRankRange=GOLD&Region=ALL&TimeRange=CURRENT_EXPANSION";
+      const proxyUrl = "https://api.allorigins.win/get?url=" + encodeURIComponent(url);
+      
+      const res = await fetch(proxyUrl);
+      const data = await res.json();
+      
+      if (!data.contents) throw new Error("No contents from proxy");
+      
+      const hsreplayData = JSON.parse(data.contents);
+      
+      await fetch(API_URL + "/meta/hsreplay-sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(hsreplayData)
+      });
+      
+      alert(lang === 'pl' ? 'Sukces! Statystyki zostały zaktualizowane z HSReplay!' : 'Success! Stats updated from HSReplay!');
+      window.location.reload();
+    } catch (err) {
+      alert((lang === 'pl' ? 'Wystąpił błąd podczas aktualizacji: ' : 'Error updating stats: ') + err.message);
+    } finally {
+      setIsSyncingMeta(false);
     }
-  }, []);
+  };
 
   // Filters (HSReplay Layout)
   const [selectedClass, setSelectedClass] = useState('All');
@@ -1029,13 +1050,9 @@ export default function App() {
             </span>
           )}
           {syncStatus && <span style={{ fontSize: '12px', color: 'var(--gold)', fontWeight: '600' }}>{syncStatus}</span>}
-          <a
-            ref={bookmarkletRef}
-            href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              alert(lang === 'pl' ? 'Przeciągnij ten przycisk na swój pasek zakładek w przeglądarce, a następnie wejdź na hsreplay.net i kliknij zakładkę!' : 'Drag this button to your bookmarks bar, then visit hsreplay.net and click the bookmark!');
-            }}
+          <button
+            onClick={fetchAllOriginsMeta}
+            disabled={isSyncingMeta}
             style={{ 
               padding: '6px 14px', 
               background: 'linear-gradient(135deg, #a855f7, #9333ea)', 
@@ -1043,18 +1060,19 @@ export default function App() {
               color: '#fff', 
               borderRadius: '4px', 
               fontWeight: '800', 
-              cursor: 'grab', 
+              cursor: isSyncingMeta ? 'wait' : 'pointer', 
               fontSize: '12px', 
               display: 'flex', 
               alignItems: 'center', 
               gap: '6px',
               textDecoration: 'none',
-              boxShadow: '0 0 12px rgba(168, 85, 247, 0.4)'
+              boxShadow: '0 0 12px rgba(168, 85, 247, 0.4)',
+              opacity: isSyncingMeta ? 0.7 : 1
             }}
-            title={lang === 'pl' ? "Przeciągnij mnie na pasek zakładek!" : "Drag me to bookmarks!"}
+            title={lang === 'pl' ? "Kliknij, aby zaktualizować dane o taliach!" : "Click to update deck data!"}
           >
-            <span>🪄</span> {lang === 'pl' ? 'Aktualizuj Meta (Przeciągnij)' : 'Update Meta (Drag me)'}
-          </a>
+            <span>🪄</span> {isSyncingMeta ? (lang === 'pl' ? 'Aktualizowanie...' : 'Updating...') : (lang === 'pl' ? 'Aktualizuj Meta (Jednym kliknięciem)' : 'Update Meta (One Click)')}
+          </button>
           <a
             href="/api/download/tracker"
             download
