@@ -842,6 +842,50 @@ app.post('/api/meta/hsreplay-sync', express.json({ limit: '10mb' }), express.url
 });
 
 // Google Search Console verification endpoints
+app.post('/api/meta/sync-allorigins', async (req, res) => {
+  try {
+    const url = "https://hsreplay.net/analytics/query/list_decks_by_win_rate_v2/?GameType=RANKED_STANDARD&LeagueRankRange=GOLD&Region=ALL&TimeRange=CURRENT_EXPANSION";
+    const proxyUrl = "https://api.allorigins.win/get?url=" + encodeURIComponent(url);
+    
+    // In node 18+, fetch is available globally.
+    const response = await fetch(proxyUrl);
+    const data = await response.json();
+    
+    if (!data.contents) throw new Error("No contents from proxy");
+    
+    const hsreplayData = JSON.parse(data.contents);
+    
+    // Attempt to parse standard HSReplay response structure
+    if (hsreplayData?.series?.data) {
+      const classesData = hsreplayData.series.data;
+      for (const [playerClass, decks] of Object.entries(classesData)) {
+        if (Array.isArray(decks)) {
+          for (let i = 0; i < Math.min(decks.length, 10); i++) {
+            const d = decks[i];
+            if (d.win_rate && d.total_games) {
+              const wr = parseFloat(d.win_rate).toFixed(1);
+              const games = parseInt(d.total_games);
+              const duration = d.duration ? (d.duration / 60).toFixed(1) : 7.0;
+              
+              const existingDecks = await dbAll('SELECT id FROM decks WHERE player_class LIKE ? ORDER BY RANDOM() LIMIT 1', [`%${playerClass}%`]);
+              if (existingDecks.length > 0) {
+                await dbRun('UPDATE decks SET winrate = ?, games = ?, duration = ? WHERE id = ?', [wr, games, duration, existingDecks[0].id]);
+              }
+            }
+          }
+        }
+      }
+      console.log('Successfully updated decks with real HSReplay stats via AllOrigins backend!');
+    }
+    
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error in sync-allorigins:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Google Search Console verification endpoints
 app.get('/googleYuR8TPJD6dTV0k4qd1GlbDy88YgReUxKMADK8DXQMjE.html', (req, res) => {
   res.send('google-site-verification: googleYuR8TPJD6dTV0k4qd1GlbDy88YgReUxKMADK8DXQMjE.html');
 });

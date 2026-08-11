@@ -414,21 +414,12 @@ export default function App() {
   const fetchAllOriginsMeta = async () => {
     setIsSyncingMeta(true);
     try {
-      const url = "https://hsreplay.net/analytics/query/list_decks_by_win_rate_v2/?GameType=RANKED_STANDARD&LeagueRankRange=GOLD&Region=ALL&TimeRange=CURRENT_EXPANSION";
-      const proxyUrl = "https://api.allorigins.win/get?url=" + encodeURIComponent(url);
-      
-      const res = await fetch(proxyUrl);
-      const data = await res.json();
-      
-      if (!data.contents) throw new Error("No contents from proxy");
-      
-      const hsreplayData = JSON.parse(data.contents);
-      
-      await fetch(API_URL + "/meta/hsreplay-sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(hsreplayData)
+      const res = await fetch(API_URL + "/meta/sync-allorigins", {
+        method: "POST"
       });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Błąd serwera");
       
       alert(lang === 'pl' ? 'Sukces! Statystyki zostały zaktualizowane z HSReplay!' : 'Success! Stats updated from HSReplay!');
       window.location.reload();
