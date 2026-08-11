@@ -72,11 +72,7 @@ namespace HSRivalScraper
         private async void CoreWebView2_NavigationCompleted(object sender, CoreWebView2NavigationCompletedEventArgs e)
         {
             System.IO.File.AppendAllText(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "scraper_log.txt"), "Navigation completed. Success: " + e.IsSuccess + "\n");
-            if (!e.IsSuccess)
-            {
-                Application.Exit();
-                return;
-            }
+            // Do not exit on !e.IsSuccess because Cloudflare returns HTTP 403 for its challenge pages!
 
             try
             {
