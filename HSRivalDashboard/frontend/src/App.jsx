@@ -1496,56 +1496,24 @@ export default function App() {
                               <div style={{ fontWeight: '800', fontSize: '17px', color: 'var(--text-dark-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 {deck.title.split(' [')[0]}
                               </div>
-                              <div style={{ fontSize: '14px', color: 'var(--text-dark-muted)', marginTop: '4px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                              <div style={{ fontSize: '13px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 {(() => {
                                   const missingDust = deck.dustCost || 0;
                                   const totalDeckDust = deck.totalDust || deck.cards?.reduce((sum, c) => sum + (c.count * (DUST_VALUES[c.rarity] || 40)), 0) || 0;
-                                  const availableDust = dustBudget || 0;
-                                  const remainingNeeded = Math.max(0, missingDust - availableDust);
-
+                                  
                                   if (deck.missingCount === 0) {
                                     return (
-                                      <span style={{ color: 'var(--win)', fontWeight: '800', display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
-                                        <span>{t.ownAllCards} {deck.totalCount || 30}/{deck.totalCount || 30} {t.ofCards}</span>
-                                        <span style={{ color: '#64748b' }}>•</span>
-                                        <span style={{ color: 'var(--text-dark-muted)', fontWeight: '600' }}>
-                                          🏷️ {lang === 'pl' ? 'Całkowity koszt' : 'Full deck'}: <b style={{ color: 'var(--gold-light)' }}>{totalDeckDust.toLocaleString()} {t.dust}</b>
-                                        </span>
+                                      <span style={{ color: '#22c55e', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        <span style={{ fontSize: '16px' }}>✓</span>
+                                        {lang === 'pl' ? 'Można złożyć' : 'Buildable'}
                                       </span>
                                     );
                                   }
 
                                   return (
-                                    <span style={{ fontSize: '14px', display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
-                                      <b style={{ color: '#22c55e' }}>{t.youOwn} {deck.ownedCount || ((deck.totalCount || 30) - deck.missingCount)}/{deck.totalCount || 30} {t.ofCards}</b>
-                                      <span style={{ color: '#64748b' }}>•</span>
-                                      <b style={{ color: '#ef4444' }}>{t.missing}: {deck.missingCount}</b>
-                                      <span style={{ color: '#64748b' }}>•</span>
-                                      
-                                      {/* Dust needed to craft missing cards */}
-                                      <span>🧪 {lang === 'pl' ? 'Do dopylenia' : 'To craft'}: <b style={{ color: 'var(--gold-light)' }}>{missingDust.toLocaleString()} {t.dust}</b></span>
-                                      
-                                      {/* Real-time remaining needed after subtracting user's current dust */}
-                                      {availableDust > 0 && (
-                                        <span style={{ 
-                                          background: remainingNeeded === 0 ? 'rgba(34, 197, 94, 0.2)' : 'rgba(245, 158, 11, 0.2)', 
-                                          color: remainingNeeded === 0 ? '#4ade80' : '#fcd34d', 
-                                          padding: '2px 8px', borderRadius: '4px', 
-                                          border: remainingNeeded === 0 ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid rgba(245, 158, 11, 0.4)', 
-                                          fontWeight: '800', fontSize: '12px' 
-                                        }}>
-                                          {remainingNeeded === 0 
-                                            ? (lang === 'pl' ? '✨ Stać Cię na tę talię!' : '✨ You can afford this deck!')
-                                            : (lang === 'pl' ? `⚡ Brakuje jeszcze: ${remainingNeeded.toLocaleString()} pyłu` : `⚡ Remaining needed: ${remainingNeeded.toLocaleString()} dust`)
-                                          }
-                                        </span>
-                                      )}
-
-                                      {/* Total full deck cost */}
-                                      <span style={{ color: '#64748b' }}>•</span>
-                                      <span style={{ color: 'var(--text-dark-muted)', fontWeight: '600' }}>
-                                        🏷️ {lang === 'pl' ? 'Całkowity koszt' : 'Full deck'}: <b style={{ color: '#cbd5e1' }}>{totalDeckDust.toLocaleString()} {t.dust}</b>
-                                      </span>
+                                    <span style={{ color: '#94a3b8', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                      <span style={{ color: '#38bdf8', fontSize: '14px', textShadow: '0 0 4px rgba(56,189,248,0.5)' }}>⚗️</span>
+                                      {missingDust > 0 ? missingDust.toLocaleString() : totalDeckDust.toLocaleString()}
                                     </span>
                                   );
                                 })()}
@@ -1604,8 +1572,9 @@ export default function App() {
                                     width: '32px', height: '32px', borderRadius: '50%',
                                     backgroundImage: `url(https://art.hearthstonejson.com/v1/tiles/${card.id}.png)`,
                                     backgroundSize: 'cover', backgroundPosition: 'center', position: 'relative',
-                                    border: missing ? '2.5px solid #ef4444' : '2px solid rgba(255,255,255,0.3)',
-                                    boxShadow: '0 2px 4px rgba(0,0,0,0.4)'
+                                    border: '2px solid rgba(255,255,255,0.15)',
+                                    boxShadow: '0 2px 4px rgba(0,0,0,0.4)',
+                                    filter: missing ? 'grayscale(100%) opacity(0.4)' : 'none'
                                   }}
                                 >
                                   {/* Multiplier badge */}

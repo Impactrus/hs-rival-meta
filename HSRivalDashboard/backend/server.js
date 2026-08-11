@@ -51,9 +51,6 @@ function calculateDecksDust(decks, collectionMap) {
   const nameToOwnedMap = new Map();
   globalCardMap.forEach((c, dbfId) => {
     let owned = collectionMap.get(dbfId) || collectionMap.get(Number(dbfId)) || 0;
-    if (c.rarity === 'FREE' || (c.id && c.id.startsWith('CORE_'))) {
-      owned = Math.max(owned, c.rarity === 'LEGENDARY' ? 1 : 2);
-    }
     if (owned > 0 && c.name && c.type) {
       const normName = c.name.toLowerCase().trim();
       const key = `${normName}_${c.type}`;
@@ -94,10 +91,6 @@ function calculateDecksDust(decks, collectionMap) {
 
       let owned = collectionMap.get(dbfId) || collectionMap.get(Number(dbfId)) || 0;
 
-      // Auto-grant ownership for Core Set & FREE cards
-      if (cardMeta.rarity === 'FREE' || (cardMeta.id && cardMeta.id.startsWith('CORE_'))) {
-        owned = Math.max(owned, required);
-      }
       // Alias / Reprint check by normalized card name AND type
       if (cardMeta.name && cardMeta.type) {
         const normName = cardMeta.name.toLowerCase().trim();
@@ -397,15 +390,7 @@ app.post('/api/collection/scan', async (req, res) => {
 
     const collectionMap = new Map();
 
-    // 1. Auto-include ALL FREE & Core set cards (every player owns them by default in Hearthstone!)
-    dbCards.forEach(c => {
-      if (c.rarity === 'FREE' || (c.id && c.id.startsWith('CORE_'))) {
-        const qty = c.rarity === 'LEGENDARY' ? 1 : 2;
-        collectionMap.set(c.dbf_id, qty);
-      }
-    });
-
-    // 2. Scan PlayerDecks.xml if available in HDT
+    // Scan PlayerDecks.xml if available in HDT
     if (appData) {
       const xmlPath = path.join(appData, 'HearthstoneDeckTracker', 'PlayerDecks.xml');
       if (fs.existsSync(xmlPath)) {
@@ -438,7 +423,7 @@ app.post('/api/collection/scan', async (req, res) => {
     res.json({
       success: true,
       count: collectionMap.size,
-      message: `Pomyślnie skompletowano kolekcję (${collectionMap.size} kart)! Zaliczono darmowe karty z Zestawu Bazowego (Core Set) oraz karty z HDT.`
+      message: `Pomyślnie skompletowano kolekcję (${collectionMap.size} kart) na podstawie HDT.`
     });
   } catch (err) {
     await dbRun('ROLLBACK');
