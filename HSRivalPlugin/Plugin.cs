@@ -94,7 +94,7 @@ namespace HSRivalPlugin
                             string scraperExe = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "HSRivalScraper.exe");
                             if (File.Exists(scraperExe))
                             {
-                                string serverUrl = Config != null && !string.IsNullOrWhiteSpace(Config.ServerUrl) ? Config.ServerUrl.TrimEnd('/') : "http://localhost:5123";
+                                string serverUrl = Config != null && !string.IsNullOrWhiteSpace(Config.ServerUrl) ? Config.ServerUrl.TrimEnd('/') : "https://hs-rival-meta.onrender.com";
                                 var psi = new System.Diagnostics.ProcessStartInfo
                                 {
                                     FileName = scraperExe,
