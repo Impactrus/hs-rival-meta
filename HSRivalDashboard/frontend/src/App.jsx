@@ -1494,7 +1494,7 @@ export default function App() {
                             </span>
                             <div>
                               <div style={{ fontWeight: '800', fontSize: '17px', color: 'var(--text-dark-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                {deck.title.split(' [')[0]}
+                                {deck.title.split(/ #| - /)[0].trim()}
                               </div>
                               <div style={{ fontSize: '13px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 {(() => {
