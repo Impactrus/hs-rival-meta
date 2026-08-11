@@ -27,7 +27,7 @@ namespace HSRivalPlugin
         public string Description => "Automatyczna synchronizacja kolekcji kart oraz historii meczów z portalem HS Rival Meta.";
         public string Author => "HS Rival Team";
         public string ButtonText => "Settings";
-        public Version Version => new Version(1, 0, 1);
+        public Version Version => new Version(1, 0, 2);
 
         private static TcpListener _tcpListener;
         private static bool _isRunning = false;

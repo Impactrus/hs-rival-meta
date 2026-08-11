@@ -786,9 +786,9 @@ app.get('/api/download/plugin', (req, res) => {
 
 // Route for downloading 1-click HDT Plugin Installer executable (Install_HSRival_Plugin.exe)
 app.get('/api/download/installer', (req, res) => {
-  const installerPath = path.join(__dirname, 'public', 'downloads', 'Install_HSRival_Plugin.exe');
+  const installerPath = path.join(__dirname, 'public', 'downloads', 'Install_HSRival_Plugin_v1.1.exe');
   if (fs.existsSync(installerPath)) {
-    res.download(installerPath, 'Install_HSRival_Plugin.exe');
+    res.download(installerPath, 'Install_HSRival_Plugin_v1.1.exe');
   } else {
     res.status(404).json({ error: 'Installer package not found on server.' });
   }
