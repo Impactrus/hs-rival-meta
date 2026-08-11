@@ -885,6 +885,11 @@ app.post('/api/meta/sync-allorigins', async (req, res) => {
   }
 });
 
+app.get('/api/download/updater', (req, res) => {
+  const filePath = path.join(__dirname, 'public', 'downloads', 'HSRivalUpdater.zip');
+  res.download(filePath);
+});
+
 // Google Search Console verification endpoints
 app.get('/googleYuR8TPJD6dTV0k4qd1GlbDy88YgReUxKMADK8DXQMjE.html', (req, res) => {
   res.send('google-site-verification: googleYuR8TPJD6dTV0k4qd1GlbDy88YgReUxKMADK8DXQMjE.html');

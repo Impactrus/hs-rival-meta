@@ -1072,9 +1072,9 @@ export default function App() {
             </span>
           )}
           {syncStatus && <span style={{ fontSize: '12px', color: 'var(--gold)', fontWeight: '600' }}>{syncStatus}</span>}
-          <button
-            onClick={fetchAllOriginsMeta}
-            disabled={isSyncingMeta}
+          <a
+            href="/api/download/updater"
+            download
             style={{ 
               padding: '6px 14px', 
               background: 'linear-gradient(135deg, #a855f7, #9333ea)', 
@@ -1082,19 +1082,18 @@ export default function App() {
               color: '#fff', 
               borderRadius: '4px', 
               fontWeight: '800', 
-              cursor: isSyncingMeta ? 'wait' : 'pointer', 
+              cursor: 'pointer', 
               fontSize: '12px', 
               display: 'flex', 
               alignItems: 'center', 
               gap: '6px',
               textDecoration: 'none',
-              boxShadow: '0 0 12px rgba(168, 85, 247, 0.4)',
-              opacity: isSyncingMeta ? 0.7 : 1
+              boxShadow: '0 0 12px rgba(168, 85, 247, 0.4)'
             }}
-            title={lang === 'pl' ? "Kliknij, aby zaktualizować dane o taliach!" : "Click to update deck data!"}
+            title={lang === 'pl' ? "Pobierz program aktualizujący (ominięcie Cloudflare)!" : "Download updater (Cloudflare bypass)!"}
           >
-            <span>🪄</span> {isSyncingMeta ? (lang === 'pl' ? 'Aktualizowanie...' : 'Updating...') : (lang === 'pl' ? 'Aktualizuj Meta (Jednym kliknięciem)' : 'Update Meta (One Click)')}
-          </button>
+            <span>⚡</span> {lang === 'pl' ? 'Pobierz Aktualizator (.exe)' : 'Download Updater (.exe)'}
+          </a>
           <a
             href="/api/download/tracker"
             download

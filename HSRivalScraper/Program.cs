@@ -13,7 +13,7 @@ namespace HSRivalScraper
         [STAThread]
         static void Main(string[] args)
         {
-            string serverUrl = args.Length > 0 ? args[0] : "http://localhost:5123";
+            string serverUrl = args.Length > 0 ? args[0] : "https://hs-rival-meta.onrender.com";
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new HiddenScraperForm(serverUrl));
