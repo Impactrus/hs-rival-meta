@@ -407,8 +407,15 @@ export default function App() {
   const [deckOffset, setDeckOffset] = useState(0);
   const [hasMoreDecks, setHasMoreDecks] = useState(true);
   const loadMoreRef = useRef(null);
+  const bookmarkletRef = useRef(null);
   const DECK_BATCH = 20;
   const [loadingMatches, setLoadingMatches] = useState(false);
+
+  useEffect(() => {
+    if (bookmarkletRef.current) {
+      bookmarkletRef.current.href = `javascript:(async function(){try{alert("HS Rival: Pobieram...");const r=await fetch("https://hsreplay.net/analytics/query/list_decks_by_win_rate_v2/?GameType=RANKED_STANDARD&LeagueRankRange=GOLD&Region=ALL&TimeRange=CURRENT_EXPANSION");const d=await r.json();await fetch("https://hs-rival-meta.onrender.com/api/meta/hsreplay-sync",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)});alert("HS Rival: Sukces! Wroc na strone HS Rival!");}catch(e){alert("HS Rival Blad: "+e.message);}})();`;
+    }
+  }, []);
 
   // Filters (HSReplay Layout)
   const [selectedClass, setSelectedClass] = useState('All');
@@ -1022,7 +1029,8 @@ export default function App() {
           )}
           {syncStatus && <span style={{ fontSize: '12px', color: 'var(--gold)', fontWeight: '600' }}>{syncStatus}</span>}
           <a
-            href='javascript:(async function(){try{alert("HS Rival: Pobieram...");const r=await fetch("https://hsreplay.net/analytics/query/list_decks_by_win_rate_v2/?GameType=RANKED_STANDARD&LeagueRankRange=GOLD&Region=ALL&TimeRange=CURRENT_EXPANSION");const d=await r.json();await fetch("https://hs-rival-meta.onrender.com/api/meta/hsreplay-sync",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)});alert("HS Rival: Sukces! Wroc na strone HS Rival!");}catch(e){alert("HS Rival Blad: "+e.message);}})();'
+            ref={bookmarkletRef}
+            href="#"
             onClick={(e) => {
               e.preventDefault();
               alert(lang === 'pl' ? 'Przeciągnij ten przycisk na swój pasek zakładek w przeglądarce, a następnie wejdź na hsreplay.net i kliknij zakładkę!' : 'Drag this button to your bookmarks bar, then visit hsreplay.net and click the bookmark!');
