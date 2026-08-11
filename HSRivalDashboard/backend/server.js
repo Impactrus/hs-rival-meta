@@ -814,7 +814,7 @@ app.post('/api/meta/hsreplay-sync', express.json({ limit: '10mb' }), async (req,
               
               // Find a deck matching this class to update, or just insert a new mock record if we can't build a deckstring
               // In this MVP, we will just update existing decks for that class to distribute the real stats
-              const existingDecks = await dbAll('SELECT id FROM decks WHERE player_class LIKE ? ORDER BY RANDOM() LIMIT 1', [\`%\${playerClass}%\`]);
+              const existingDecks = await dbAll('SELECT id FROM decks WHERE player_class LIKE ? ORDER BY RANDOM() LIMIT 1', [`%${playerClass}%`]);
               if (existingDecks.length > 0) {
                 await dbRun('UPDATE decks SET winrate = ?, games = ?, duration = ? WHERE id = ?', [wr, games, duration, existingDecks[0].id]);
               }
