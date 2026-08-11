@@ -71,9 +71,17 @@ async function initTables() {
         format TEXT DEFAULT 'Standard',
         rank_desc TEXT,
         date TEXT,
-        source_url TEXT
+        source_url TEXT,
+        winrate REAL DEFAULT 0,
+        games INTEGER DEFAULT 0,
+        duration REAL DEFAULT 0
       )
     `);
+
+    // Safely add columns if they don't exist (for existing databases)
+    try { await dbRun("ALTER TABLE decks ADD COLUMN winrate REAL DEFAULT 0"); } catch { }
+    try { await dbRun("ALTER TABLE decks ADD COLUMN games INTEGER DEFAULT 0"); } catch { }
+    try { await dbRun("ALTER TABLE decks ADD COLUMN duration REAL DEFAULT 0"); } catch { }
 
     // Matches table (locally uploaded matches with JSON card columns for mulligan/played stats)
     await dbRun(`

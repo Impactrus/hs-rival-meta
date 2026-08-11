@@ -9,8 +9,23 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="..\HSRivalPlugin\bin\Debug\net472\HSRivalPlugin.dll">
-      <Link>HSRivalPlugin.dll</Link>
+    <EmbeddedResource Include="..\HSRivalPlugin\bin\Release\net48\HSRivalPlugin.dll">
+      <LogicalName>HSRivalPlugin.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\HSRivalScraper\bin\Release\net48\HSRivalScraper.exe">
+      <LogicalName>HSRivalScraper.exe</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\HSRivalScraper\bin\Release\net48\Microsoft.Web.WebView2.Core.dll">
+      <LogicalName>Microsoft.Web.WebView2.Core.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\HSRivalScraper\bin\Release\net48\Microsoft.Web.WebView2.WinForms.dll">
+      <LogicalName>Microsoft.Web.WebView2.WinForms.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\HSRivalScraper\bin\Release\net48\Newtonsoft.Json.dll">
+      <LogicalName>Newtonsoft.Json.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\HSRivalScraper\bin\Release\net48\WebView2Loader.dll">
+      <LogicalName>WebView2Loader.dll</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
 

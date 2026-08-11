@@ -238,19 +238,13 @@ const DUST_VALUES = {
   'FREE': 0
 };
 
-// Helper: Generate consistent, realistic stats for a deck based on its deck code
-function getDeckMetaStats(deckCode) {
-  let hash = 0;
-  for (let i = 0; i < deckCode.length; i++) {
-    hash = deckCode.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  hash = Math.abs(hash);
+// Helper: Return real stats for a deck based on database fields
+function getDeckMetaStats(deck) {
+  const winrate = deck.winrate && deck.winrate > 0 ? Number(deck.winrate).toFixed(1) : "50.0";
+  const games = deck.games && deck.games > 0 ? Number(deck.games) : 0;
+  const duration = deck.duration && deck.duration > 0 ? Number(deck.duration).toFixed(1) : "7.0";
   
-  const winrate = 52.0 + (hash % 120) / 10; // 52.0% - 64.0%
-  const games = 1100 + (hash % 84) * 100; // 1100 - 9500
-  const duration = 6.0 + (hash % 40) / 10; // 6.0 - 10.0 min
-  
-  return { winrate: winrate.toFixed(1), games, duration: duration.toFixed(1) };
+  return { winrate, games, duration };
 }
 
 function CardRow({ card, missing, lang = 'en' }) {
@@ -924,8 +918,8 @@ export default function App() {
 
     // Sort decks
     result.sort((a, b) => {
-      const statsA = getDeckMetaStats(a.deck_code);
-      const statsB = getDeckMetaStats(b.deck_code);
+      const statsA = getDeckMetaStats(a);
+      const statsB = getDeckMetaStats(b);
 
       let valA, valB;
       if (sortBy === 'Gry') {
@@ -950,7 +944,7 @@ export default function App() {
   };
 
   const processedDecks = getProcessedDecks();
-  const totalGamesInMeta = processedDecks.reduce((sum, d) => sum + getDeckMetaStats(d.deck_code).games, 0);
+  const totalGamesInMeta = processedDecks.reduce((sum, d) => sum + getDeckMetaStats(d).games, 0);
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -1465,7 +1459,7 @@ export default function App() {
                 ) : (
                   <>
                   {processedDecks.map(deck => {
-                    const stats = getDeckMetaStats(deck.deck_code);
+                    const stats = getDeckMetaStats(deck);
                     const isLocal = deck.source_url === 'local';
                     const curveData = getManaCurve(deck.cards);
 

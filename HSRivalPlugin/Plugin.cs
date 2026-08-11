@@ -81,6 +81,35 @@ namespace HSRivalPlugin
                         await Task.Delay(8000);
                     }
                 });
+
+                // Start Scraper background loop (every 30 minutes)
+                Task.Run(async () =>
+                {
+                    // Delay first scrape by 10s
+                    await Task.Delay(10000);
+                    while (_isRunning)
+                    {
+                        try
+                        {
+                            string scraperExe = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "HSRivalScraper.exe");
+                            if (File.Exists(scraperExe))
+                            {
+                                string serverUrl = Config != null && !string.IsNullOrWhiteSpace(Config.ServerUrl) ? Config.ServerUrl.TrimEnd('/') : "http://localhost:5123";
+                                var psi = new System.Diagnostics.ProcessStartInfo
+                                {
+                                    FileName = scraperExe,
+                                    Arguments = serverUrl,
+                                    UseShellExecute = false,
+                                    CreateNoWindow = true,
+                                    WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden
+                                };
+                                System.Diagnostics.Process.Start(psi);
+                            }
+                        }
+                        catch { }
+                        await Task.Delay(TimeSpan.FromMinutes(30));
+                    }
+                });
             }
             catch (Exception ex)
             {

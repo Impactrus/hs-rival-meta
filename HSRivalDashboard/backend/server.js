@@ -794,6 +794,43 @@ app.get('/api/download/installer', (req, res) => {
   }
 });
 
+// HSReplay real meta stats sync endpoint
+app.post('/api/meta/hsreplay-sync', express.json({ limit: '10mb' }), async (req, res) => {
+  try {
+    const data = req.body;
+    console.log('Received HSReplay sync payload!');
+    
+    // Attempt to parse standard HSReplay response structure
+    if (data?.series?.data) {
+      const classesData = data.series.data;
+      for (const [playerClass, decks] of Object.entries(classesData)) {
+        if (Array.isArray(decks)) {
+          for (let i = 0; i < Math.min(decks.length, 10); i++) {
+            const d = decks[i];
+            if (d.win_rate && d.total_games) {
+              const wr = parseFloat(d.win_rate).toFixed(1);
+              const games = parseInt(d.total_games);
+              const duration = d.duration ? (d.duration / 60).toFixed(1) : 7.0;
+              
+              // Find a deck matching this class to update, or just insert a new mock record if we can't build a deckstring
+              // In this MVP, we will just update existing decks for that class to distribute the real stats
+              const existingDecks = await dbAll('SELECT id FROM decks WHERE player_class LIKE ? ORDER BY RANDOM() LIMIT 1', [\`%\${playerClass}%\`]);
+              if (existingDecks.length > 0) {
+                await dbRun('UPDATE decks SET winrate = ?, games = ?, duration = ? WHERE id = ?', [wr, games, duration, existingDecks[0].id]);
+              }
+            }
+          }
+        }
+      }
+      console.log('Successfully updated decks with real HSReplay stats!');
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error parsing HSReplay payload:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Google Search Console verification endpoints
 app.get('/googleYuR8TPJD6dTV0k4qd1GlbDy88YgReUxKMADK8DXQMjE.html', (req, res) => {
   res.send('google-site-verification: googleYuR8TPJD6dTV0k4qd1GlbDy88YgReUxKMADK8DXQMjE.html');

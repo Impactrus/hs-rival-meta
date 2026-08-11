@@ -26,38 +26,28 @@ namespace HSRivalInstaller
                 string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
                 string hdtLocalDir = Path.Combine(localAppData, "HearthstoneDeckTracker");
 
-                // Extract embedded HSRivalPlugin.dll
+                // Extract embedded files
                 var assembly = Assembly.GetExecutingAssembly();
+                string[] resources = {
+                    "HSRivalPlugin.dll",
+                    "HSRivalScraper.exe",
+                    "Microsoft.Web.WebView2.Core.dll",
+                    "Microsoft.Web.WebView2.WinForms.dll",
+                    "Newtonsoft.Json.dll",
+                    "WebView2Loader.dll"
+                };
 
-                // Copy to Roaming
-                using (var stream = assembly.GetManifestResourceStream("HSRivalInstaller.HSRivalPlugin.dll"))
+                foreach (var resName in resources)
                 {
-                    if (stream != null)
+                    using (var stream = assembly.GetManifestResourceStream(resName))
                     {
-                        using (var fileStream = File.Create(dllPath))
+                        if (stream != null)
                         {
-                            stream.CopyTo(fileStream);
-                        }
-
-                        // Also copy to any app-* directories in LocalAppData
-                        if (Directory.Exists(hdtLocalDir))
-                        {
-                            foreach (var appDir in Directory.GetDirectories(hdtLocalDir, "app-*"))
+                            using (var fileStream = File.Create(Path.Combine(pluginDir, resName)))
                             {
-                                try
-                                {
-                                    string localPluginDir = Path.Combine(appDir, "Plugins", "HSRivalPlugin");
-                                    Directory.CreateDirectory(localPluginDir);
-                                    File.Copy(dllPath, Path.Combine(localPluginDir, "HSRivalPlugin.dll"), true);
-                                }
-                                catch { }
+                                stream.CopyTo(fileStream);
                             }
                         }
-                    }
-                    else
-                    {
-                        MessageBox.Show("Nie odnaleziono pliku wtyczki w instalatorze.", "Błąd instalacji", MessageBoxButton.OK, MessageBoxImage.Error);
-                        return;
                     }
                 }
 
